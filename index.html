@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบลงเวลาพนักงาน</title>
+<style>
+:root{--bg:#070b19;--panel:#111a2d;--panel2:#172238;--line:#26344e;--text:#edf3ff;--muted:#9aabc5;--blue:#3978f6;--green:#079b70;--red:#e34b5b;--amber:#d69a2d;--shadow:0 18px 50px #0005}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s,color .2s}
+body.light{--bg:#f2f5fb;--panel:#ffffff;--panel2:#f5f7fc;--line:#dce3ef;--text:#1c2940;--muted:#64748b;--shadow:0 12px 35px #25385818}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer;border:1px solid var(--line);border-radius:11px;padding:10px 14px;background:var(--panel2);color:var(--text);font-weight:650;transition:.18s}
+button:hover{filter:brightness(1.08)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.success{background:var(--green);border-color:var(--green);color:#fff}
+.danger{background:var(--red);border-color:var(--red);color:#fff}
+.warning{background:#493719;border-color:#7d5a21;color:#ffdb91}
+body.light .warning{background:#fff8eb;border-color:#f0cf8e;color:#9a6300}
+.muted{color:var(--muted)}
+.hidden{display:none!important}
+
+/* Layout & Sidebar */
+.app{display:flex;min-height:100vh}
+.sidebar{width:268px;background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;transition:.22s;flex-shrink:0}
+.brand{display:flex;align-items:center;gap:12px;padding:0 4px 20px;border-bottom:1px solid var(--line);font-weight:800}
+.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#3d85ff,#5445d9);display:grid;place-items:center;font-size:19px;color:#fff;flex-shrink:0}
+.brand small{display:block;color:var(--muted);font-weight:500;font-size:11px}
+.navlabel{font-size:11px;color:var(--muted);font-weight:800;margin:14px 4px 8px;text-transform:uppercase;letter-spacing:.4px}
+.navdivider{height:1px;background:var(--line);margin:18px 2px 6px}
+.navbtn{width:100%;text-align:left;margin:4px 0;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:9px}
+.navbtn:hover{border-color:#3b527a}
+.navbtn.active{background:#18325b;border-color:#2b4b7d;color:#8db6ff}
+body.light .navbtn.active{background:#e7f0ff;border-color:#b4d0ff;color:#1d5ed6}
+.adminRow{display:flex;gap:8px;margin-top:4px;align-items:stretch}
+.adminRow .navbtn{margin:0;flex:1}
+.miniBtn{padding:0 12px;border-radius:12px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.footnote{font-size:11px;color:var(--muted);margin-top:10px;padding:0 4px;line-height:1.4}
+
+/* ปุ่ม มืด / สว่าง สลับสีตามโหมด (โหมดมืด=ปุ่มขาว, โหมดสว่าง=ปุ่มดำ) */
+.themeBtn{background:#ffffff;color:#0f172a;border-color:#e2e8f0;font-weight:750}
+body.light .themeBtn{background:#0f172a;color:#ffffff;border-color:#0f172a}
+
+/* ยุบแถบด้านข้าง ให้เหลือเฉพาะปุ่ม ย่อ-ขยาย */
+.sidebar.collapsed{width:58px;padding:18px 8px;align-items:center}
+.sidebar.collapsed .brand{border-bottom:0;padding:0;justify-content:center;width:100%}
+.sidebar.collapsed .brand .logo,
+.sidebar.collapsed .brandText,
+.sidebar.collapsed .navlabel,
+.sidebar.collapsed .navdivider,
+.sidebar.collapsed .navbtn,
+.sidebar.collapsed .adminRow,
+.sidebar.collapsed .footnote{display:none!important}
+
+/* Main Content & Top Header */
+.main{flex:1;min-width:0;padding:28px clamp(16px,4vw,52px);max-width:1450px;margin:auto;width:100%}
+.topline{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.topline h1{font-size:24px;margin:0;font-weight:800}
+.clockbox{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);padding:10px 20px;border-radius:14px;box-shadow:var(--shadow)}
+.clock{font-size:24px;font-weight:850;color:#ff4d5e;font-variant-numeric:tabular-nums;line-height:1.1}
+
+/* Cards & Scan Section */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:20px;box-shadow:var(--shadow)}
+.scanHead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+.scanHeadLeft h2{margin:0;font-size:17px}
+.scanHeadLeft p{margin:3px 0 0;color:var(--muted);font-size:12.5px}
+.seg{display:inline-flex;background:var(--bg);padding:4px;border-radius:13px;border:1px solid var(--line);gap:4px}
+.seg button{border:0;background:transparent;color:var(--muted);padding:8px 16px;border-radius:10px}
+.seg button.selected{background:var(--green);color:#fff;box-shadow:0 4px 14px #079b7044}
+.seg button.leave.selected{background:var(--red);color:#fff;box-shadow:0 4px 14px #e34b5b44}
+.scanrow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.field{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 16px;font-size:15px;outline:none;transition:.15s}
+.field:focus{border-color:var(--blue)}
+
+/* Card Head & Employee Result */
+.cardHead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.cardHead h2{margin:0;font-size:17px}
+.actions{display:flex;gap:8px;align-items:center}
+.smBtn{padding:8px 12px;font-size:12.5px;border-radius:10px}
+.employee{display:flex;align-items:center;gap:16px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.avatar{width:64px;height:64px;border-radius:14px;background:#233149;display:grid;place-items:center;font-size:26px;flex-shrink:0;overflow:hidden;border:1px solid var(--line)}
+.employee h3{margin:4px 0;font-size:17px}
+.employee p{margin:2px 0;color:var(--muted);font-size:13px}
+
+/* Pills & Table */
+.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;background:#079b7024;color:#2ee5ab;border:1px solid #079b7055}
+body.light .pill{color:#057a55;background:#def7ec}
+.pill.late{background:#e34b5b24;color:#ff8591;border-color:#e34b5b55}
+body.light .pill.late{color:#c81e1e;background:#fde8e8}
+.pill.early{background:#d69a2d24;color:#ffd27c;border-color:#d69a2d55}
+body.light .pill.early{color:#9a6300;background:#fef3c7}
+
+.tablewrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:1px solid var(--line)}
+table{width:100%;border-collapse:collapse;text-align:left;min-width:620px}
+th,td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13.5px}
+th{background:var(--panel2);color:var(--muted);font-weight:750;font-size:12px}
+tr:last-child td{border-bottom:0}
+td img{width:40px;height:40px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--line)}
+.empty{text-align:center;color:var(--muted);padding:28px!important}
+
+/* Modal & Camera */
+.modal{position:fixed;inset:0;background:#0009;backdrop-filter:blur(4px);display:none;place-items:center;padding:16px;z-index:50}
+.modal.show{display:grid}
+.modalbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px #0008;transition:max-width .2s}
+.modalbox.wide{max-width:960px}
+.modalbox h2{margin:0 0 6px;font-size:18px}
+.hint{color:var(--muted);font-size:13px;margin:0 0 12px}
+.modalbox label{display:block;font-size:12.5px;font-weight:700;margin:12px 0 6px;color:var(--muted)}
+.modalbox .field{width:100%}
+.modalfoot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
+.camera{width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover;margin-top:8px;border:1px solid var(--line)}
+.shiftBox{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.shiftPreview{margin-top:10px;font-size:12.5px;color:#2ee5ab;font-weight:650}
+body.light .shiftPreview{color:#057a55}
+
+/* Toast & Animation */
+.toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:13px 18px;border-radius:13px;box-shadow:0 14px 36px #0007;z-index:80;font-weight:650;max-width:360px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .8s linear infinite}
+
+@media (max-width:768px){
+  .app{flex-direction:column}
+  .sidebar{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:14px}
+  .sidebar.collapsed{width:100%;padding:10px}
+  .formGrid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar" id="sidebar">
+ <div class="brand">
+  <div class="logo">▣</div>
+  <div class="brandText">ระบบลงเวลาทำงาน<small>Smart Attendance & Photo</small></div>
+  <button id="sideToggleBtn" style="margin-left:auto;padding:6px 10px" onclick="toggleSide()" title="ย่อ/ขยายแถบเมนู">‹</button>
+ </div>
+ <button class="navbtn themeBtn" style="margin-top:16px" onclick="toggleTheme()"><span id="themeIcon">☀️</span> <span>มืด / สว่าง</span></button>
+ <div class="navdivider"></div>
+ <div class="navlabel">ผู้ดูแลระบบ</div>
+ <button class="navbtn active" onclick="openManageWithPin()">♙ <span>ตั้งค่าพนักงาน</span></button>
+ <div class="adminRow">
+  <button class="navbtn warning" onclick="adminLogin()">🔒 <span>เปิดชีตหลังบ้าน</span></button>
+  <button class="miniBtn" onclick="changePin()" title="เปลี่ยนรหัสผ่าน">🗝 <span>รหัส</span></button>
+ </div>
+ <div class="footnote">การเปิดชีตและตั้งค่าต้องยืนยันรหัสผู้ดูแลระบบ</div>
+</aside>
+
+<main class="main">
+ <div class="topline">
+  <div><h1>ลงเวลาพนักงาน</h1></div>
+  <div class="clockbox">
+   <div class="clock" id="clock">--:--:--</div>
+   <div class="muted" id="dateText" style="font-size:13px;font-weight:600"></div>
+  </div>
+ </div>
+
+ <section class="card scanCard">
+  <div class="scanHead">
+   <div class="scanHeadLeft">
+    <h2>พิมพ์หรือสแกนรหัสพนักงาน</h2>
+    <p>รองรับเครื่องสแกน USB / Bluetooth หรือกรอกรหัสแล้วกด Enter</p>
+   </div>
+   <div class="scanHeadCenter">
+    <div class="seg">
+     <button id="inBtn" class="selected" onclick="setMode('เข้า')">🟢 เข้างาน</button>
+     <button id="outBtn" class="leave" onclick="setMode('ออก')">🔴 เลิกงาน</button>
+    </div>
+   </div>
+  </div>
+  <div class="scanrow">
+   <button onclick="startScan()">▦ สแกน QR</button>
+   <input id="empCode" class="field" placeholder="สแกนบัตร หรือพิมพ์รหัสพนักงานแล้วกด Enter..." autocomplete="off">
+   <button class="danger" style="min-width:86px;font-size:15px" onclick="lookupEmployee()">OK</button>
+  </div>
+ </section>
+
+ <section class="card">
+  <div class="cardHead">
+   <div><h2>ข้อมูลพนักงาน</h2></div>
+   <div class="actions">
+    <button id="filterDayBtn" class="smBtn" onclick="toggleDayFilter()">📅 แสดง: ล่าสุดทั้งหมด</button>
+    <button id="refreshBtn" onclick="loadToday()" title="รีเฟรชข้อมูล" style="padding:8px 11px;display:inline-flex;align-items:center;justify-content:center">
+     <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
+    </button>
+   </div>
+  </div>
+  <div id="employeeResult" class="employee hidden">
+   <div id="avatar" class="avatar">♙</div>
+   <div>
+    <span class="pill" id="empStatus">ตรวจสอบแล้ว</span>
+    <h3 id="empName">-</h3>
+    <p id="empMeta">-</p>
+    <p id="empShift">-</p>
+   </div>
+  </div>
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+   <h3 style="margin:0 0 6px;font-size:15px">ประวัติการลงเวลาล่าสุด</h3>
+   <div class="tablewrap">
+    <table>
+     <thead>
+      <tr>
+       <th>รูปถ่าย</th>
+       <th>รหัสพนักงาน</th>
+       <th>ชื่อพนักงาน</th>
+       <th>ประเภท</th>
+       <th>สถานะ</th>
+       <th>หมายเหตุ</th>
+       <th>เวลาบันทึก</th>
+      </tr>
+     </thead>
+     <tbody id="records">
+      <tr><td colspan="7" class="empty">กำลังโหลดข้อมูล...</td></tr>
+     </tbody>
+    </table>
+   </div>
+  </div>
+ </section>
+</main>
+</div>
+
+<div class="modal" id="modal"><div class="modalbox" id="modalContent"></div></div>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbwM6LB-NZjcy0u4biQuwPbIErG5UJZYY9557nWKtJSyMnWe-z-ctayaqmU3Pise6T8fFg/exec";
+const SHEET_ID = "1o0Kym05bLpzf2KnuWDgzksNhQagRngTotbPaoR6dYGk";
+const GID_ATTENDANCE = "0";
+const GID_EMPLOYEES = "802533111";
+
+let mode = 'เข้า', currentEmployee = null, stream = null, photoData = '', todayRecords = [], cachedEmployees = [], onlyTodayFilter = false;
+const $ = id => document.getElementById(id);
+
+function esc(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
+function toast(s) {
+  $('toast').textContent = s;
+  $('toast').classList.remove('hidden');
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => $('toast').classList.add('hidden'), 3800);
+}
+
+function toggleSide() {
+  const sb = $('sidebar');
+  sb.classList.toggle('collapsed');
+  const btn = $('sideToggleBtn');
+  if (btn) {
+    btn.textContent = sb.classList.contains('collapsed') ? '›' : '‹';
+    btn.style.marginLeft = sb.classList.contains('collapsed') ? '0' : 'auto';
+  }
+}
+
+function updateThemeBtnUI() {
+  const isLight = document.body.classList.contains('light');
+  if ($('themeIcon')) $('themeIcon').textContent = isLight ? '🌙' : '☀️';
+}
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  localStorage.setItem('att-theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  updateThemeBtnUI();
+}
+if (localStorage.getItem('att-theme') === 'light') document.body.classList.add('light');
+updateThemeBtnUI();
+
+function setMode(m) {
+  mode = m;
+  $('inBtn').classList.toggle('selected', m === 'เข้า');
+  $('outBtn').classList.toggle('selected', m === 'ออก');
+}
+
+function tick() {
+  let d = new Date();
+  $('clock').textContent = d.toLocaleTimeString('th-TH', { hour12: false });
+  $('dateText').textContent = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+setInterval(tick, 1000);
+function modal(html, wide = false) {
+  const box = $('modalContent');
+  box.classList.toggle('wide', wide);
+  box.innerHTML = html;
+  $('modal').classList.add('show');
+}
+
+function closeModal() {
+  $('modal').classList.remove('show');
+  $('modalContent').innerHTML = '';
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+
+function getLocalRecs() {
+  try { return JSON.parse(localStorage.getItem('att-local-recs') || '[]'); } catch (e) { return []; }
+}
+function saveLocalRecs(list) {
+  localStorage.setItem('att-local-recs', JSON.stringify(list));
+}
+localStorage.removeItem('att-local-emps');
+
+function jsonp(params) {
+  return new Promise((resolve, reject) => {
+    if (!API_URL.startsWith('https://script.google.com/')) return reject(Error('กรุณาตั้งค่า API_URL ให้ถูกต้อง'));
+    let cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+    let s = document.createElement('script');
+    let timer = setTimeout(() => { cleanup(); reject(Error('เชื่อมต่อ Google Sheets ใช้เวลานานเกินไป')); }, 12000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
+    window[cb] = data => { cleanup(); resolve(data); };
+    params.callback = cb;
+    s.src = API_URL + '?' + new URLSearchParams(params).toString();
+    s.onerror = () => { cleanup(); reject(Error('ไม่สามารถติดต่อ Google Apps Script ได้')); };
+    document.body.appendChild(s);
+  });
+}
+async function api(action, data = {}) { return jsonp({ action, ...data }); }
+
+function isTodayRecord(rec) {
+  if (!rec) return false;
+  const now = new Date();
+  const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0');
+  const iso = `${y}-${m}-${d}`;
+  const thDate = `${d}/${m}/${y + 543}`;
+  const enDate = `${d}/${m}/${y}`;
+  const rawDate = String(rec.date || rec.time || '');
+  if (!rec.date && /^\d{1,2}:\d{2}/.test(String(rec.time || ''))) return true;
+  return rawDate.includes(iso) || rawDate.includes(thDate) || rawDate.includes(enDate);
+}
+
+function timeToMinutes(t) {
+  const parts = String(t || '00:00').split(':').map(Number);
+  return (parts[0] || 0) * 60 + (parts[1] || 0);
+}
+
+function checkAttendanceStatus(emp, currentMode, timeStr) {
+  const curMins = timeToMinutes(timeStr);
+  const startMins = timeToMinutes(emp.start);
+  const endMins = timeToMinutes(emp.end);
+
+  if (currentMode === 'เข้า') {
+    if (curMins > startMins) return 'สาย';
+    return 'ปกติ';
+  } else {
+    if (curMins < endMins) return 'เลิกงานก่อนเวลา';
+    return 'ปกติ';
+  }
+}
+
+function fetchSheetRows(sheetName, gid) {
+  return new Promise((resolve, reject) => {
+    const cb = 'gviz_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+    const s = document.createElement('script');
+    const timer = setTimeout(() => { cleanup(); reject(Error('timeout')); }, 10000);
+    function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
+    window[cb] = res => {
+      cleanup();
+      if (!res || !res.table || !res.table.rows) return resolve([]);
+      const rows = res.table.rows.map(r => {
+        const cells = r.c || [];
+        const obj = {};
+        for (let i = 0; i < 10; i++) {
+          obj['col' + i] = cells[i] ? (cells[i].f !== undefined && cells[i].f !== null ? cells[i].f : (cells[i].v !== undefined && cells[i].v !== null ? cells[i].v : '')) : '';
+        }
+        return obj;
+      });
+      resolve(rows);
+    };
+    const tq = encodeURIComponent('select *');
+    const gidParam = gid ? `&gid=${encodeURIComponent(gid)}` : `&sheet=${encodeURIComponent(sheetName)}`;
+    s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${gidParam}&tq=${tq}&tqx=responseHandler:${cb}`;
+    s.onerror = () => { cleanup(); reject(Error('error')); };
+    document.body.appendChild(s);
+  });
+}
+
+function normalizeRecord(r) {
+  if (r.col0 !== undefined) {
+    const date = String(r.col0 || '').trim();
+    const time = String(r.col1 || '').trim();
+    const type = String(r.col2 || '').trim();
+    const code = String(r.col3 || '').trim();
+    const name = String(r.col4 || '').trim();
+    const status = String(r.col5 || 'ปกติ').trim();
+    const note = String(r.col6 || '-').trim();
+    const photo = String(r.col7 || '').trim();
+    return {
+      date,
+      time: date && time && !time.includes(date) ? `${date} ${time}` : (time || date || '-'),
+      code, name, type, status, note, photo
+    };
+  }
+  const date = String(r.date || r['วันที่'] || '').trim();
+  const time = String(r.time || r['เวลา'] || r['เวลาบันทึก'] || '').trim();
+  return {
+    date,
+    time: date && time && !time.includes(date) ? `${date} ${time}` : (time || date || '-'),
+    code: String(r.code || r['รหัสพนักงาน'] || r['รหัส'] || '').trim(),
+    name: String(r.name || r['ชื่อพนักงาน'] || r['ชื่อ'] || '').trim(),
+    type: String(r.type || r['เข้า/ออก'] || r['ประเภท'] || '').trim(),
+    status: String(r.status || r['สถานะ'] || 'ปกติ').trim(),
+    note: String(r.note || r['หมายเหตุ'] || '-').trim(),
+    photo: String(r.photo || r['รูป'] || r['รูปถ่าย'] || '').trim()
+  };
+}
+
+function normalizeEmployee(e) {
+  const cleanTime = (t, fallback) => {
+    if (!t) return fallback;
+    let clean = String(t).replace(/\s*(AM|PM)/gi, '').trim();
+    let parts = clean.split(':');
+    if (parts.length >= 2) {
+      let h = String(parts[0]).padStart(2, '0');
+      let m = String(parts[1]).padStart(2, '0');
+      return `${h}:${m}`;
+    }
+    return clean || fallback;
+  };
+
+  if (e.col0 !== undefined) {
+    const code = String(e.col0 || '').trim();
+    const name = String(e.col1 || '').trim();
+    const position = String(e.col2 || '-').trim();
+    const startRaw = String(e.col3 || '09:00').trim();
+    const col4Raw = String(e.col4 || '').trim();
+    const col5Raw = String(e.col5 || '').trim();
+
+    let hoursRaw = '9';
+    let endRaw = '18:00';
+    if (col5Raw && col5Raw.includes(':')) {
+      hoursRaw = col4Raw.split(':')[0] || '9';
+      endRaw = col5Raw;
+    } else if (col4Raw && col4Raw.includes(':')) {
+      endRaw = col4Raw;
+      hoursRaw = col5Raw || '9';
+    }
+
+    return {
+      code,
+      name,
+      position,
+      start: cleanTime(startRaw, '09:00'),
+      end: cleanTime(endRaw, '18:00'),
+      hours: String(parseFloat(hoursRaw) || 9),
+      photo: ''
+    };
+  }
+
+  return {
+    code: String(e.code || '').trim(),
+    name: String(e.name || '').trim(),
+    position: String(e.position || '-').trim(),
+    start: cleanTime(e.start, '09:00'),
+    end: cleanTime(e.end, '18:00'),
+    hours: String(parseFloat(e.hours) || 9),
+    photo: ''
+  };
+}
+
+function toggleDayFilter() {
+  onlyTodayFilter = !onlyTodayFilter;
+  $('filterDayBtn').textContent = onlyTodayFilter ? '📅 แสดง: เฉพาะวันนี้' : '📅 แสดง: ล่าสุดทั้งหมด';
+  renderRecords();
+}
+
+async function loadToday() {
+  const icon = $('refreshIcon'), btn = $('refreshBtn');
+  if (icon) icon.classList.add('spin');
+  if (btn) btn.disabled = true;
+
+  let serverRecs = [];
+  try {
+    const rows = await fetchSheetRows('บันทึกเข้า-ออก', GID_ATTENDANCE);
+    serverRecs = rows.map(normalizeRecord).filter(r => (r.code || r.name) && r.code !== 'รหัสพนักงาน' && r.code !== 'รหัส');
+  } catch (err1) {
+    try {
+      const res = await api('today', { all: '1' });
+      if (res && res.ok && Array.isArray(res.records)) {
+        serverRecs = res.records.map(normalizeRecord);
+      }
+    } catch (err2) {}
+  } finally {
+    if (icon) icon.classList.remove('spin');
+    if (btn) btn.disabled = false;
+  }
+
+  const localRecs = getLocalRecs();
+  const map = new Map();
+  [...serverRecs, ...localRecs].forEach(r => {
+    if (r.code && r.time) {
+      map.set(`${r.date}_${r.time}_${r.code}_${r.type}`, r);
+    }
+  });
+  
+  todayRecords = Array.from(map.values());
+  renderRecords();
+}
+
+function renderRecords() {
+  const tbody = $('records');
+  if (!tbody) return;
+  let list = onlyTodayFilter ? todayRecords.filter(isTodayRecord) : todayRecords;
+  if (!list.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีประวัติการลงเวลา</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = list.slice().reverse().map(r => {
+    const isLate = String(r.status).includes('สาย');
+    const isEarly = String(r.status).includes('ก่อน');
+    const pillClass = isLate ? 'pill late' : (isEarly ? 'pill early' : 'pill');
+    const imgHtml = r.photo && r.photo !== '-'
+      ? `<img src="${esc(r.photo)}" alt="photo" onerror="this.style.display='none'">`
+      : `<div style="width:40px;height:40px;border-radius:8px;background:#233149;display:grid;place-items:center;font-size:14px">📷</div>`;
+    return `<tr>
+      <td>${imgHtml}</td>
+      <td><b>${esc(r.code)}</b></td>
+      <td>${esc(r.name)}</td>
+      <td>${esc(r.type)}</td>
+      <td><span class="${pillClass}">${esc(r.status || 'ปกติ')}</span></td>
+      <td>${esc(r.note || '-')}</td>
+      <td>${esc(r.time)}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function getAllEmployees() {
+  try {
+    const res = await api('employees');
+    if (res && res.ok && Array.isArray(res.employees)) {
+      cachedEmployees = res.employees.map(normalizeEmployee).filter(e => e.code);
+      return cachedEmployees;
+    }
+  } catch (e) {}
+
+  try {
+    const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
+    const map = new Map();
+    rows.map(normalizeEmployee).filter(e => e.code && e.code !== 'รหัสพนักงาน').forEach(emp => {
+      map.set(emp.code, emp);
+    });
+    cachedEmployees = Array.from(map.values());
+  } catch (err) {
+    cachedEmployees = [];
+  }
+  return cachedEmployees;
+}
+
+async function lookupEmployee() {
+  const code = ($('empCode').value || '').trim();
+  if (!code) return toast('กรุณากรอกหรือสแกนรหัสพนักงาน');
+
+  let emp = null;
+  try {
+    const res = await api('lookup', { code });
+    if (res && res.ok && res.employee) {
+      emp = normalizeEmployee(res.employee);
+      emp.isLate = res.employee.isLate;
+      emp.isEarly = res.employee.isEarly;
+    }
+  } catch (e) {}
+
+  if (!emp) {
+    if (!cachedEmployees.length) await getAllEmployees();
+    emp = cachedEmployees.find(x => x.code.toLowerCase() === code.toLowerCase());
+  }
+
+  if (!emp) {
+    return toast(`ไม่พบรหัสพนักงาน "${code}" ในชีตข้อมูลพนักงาน`);
+  }
+
+  currentEmployee = emp;
+  $('employeeResult').classList.remove('hidden');
+  $('empName').textContent = `${emp.name} (รหัส ${emp.code})`;
+  $('empMeta').textContent = `ตำแหน่ง: ${emp.position || '-'} | โหมดปัจจุบัน: ${mode}งาน`;
+  $('empShift').textContent = `เวลาเข้างาน: ${emp.start} น. | เลิกงาน: ${emp.end} น.`;
+
+  const latestRecWithPhoto = todayRecords.slice().reverse().find(r => r.code.toLowerCase() === emp.code.toLowerCase() && r.photo && r.photo !== '-');
+  if (latestRecWithPhoto) {
+    $('avatar').innerHTML = `<img src="${esc(latestRecWithPhoto.photo)}" style="width:100%;height:100%;object-fit:cover" alt="photo" onerror="this.parentElement.innerHTML='♙'">`;
+  } else {
+    $('avatar').innerHTML = '♙';
+  }
+
+  const empTodayRecs = todayRecords.filter(r => isTodayRecord(r) && r.code.toLowerCase() === emp.code.toLowerCase());
+  const hasCheckedInToday = empTodayRecs.some(r => String(r.type).includes('เข้า'));
+  const hasCheckedOutToday = empTodayRecs.some(r => String(r.type).includes('ออก') || String(r.type).includes('เลิก'));
+
+  if (mode === 'ออก' && !hasCheckedInToday) {
+    showModeWarningModal(emp, 'คุณเลือกโหมด "เลิกงาน" แต่ยังไม่มีประวัติสแกน "เข้างาน" ในวันนี้ กรุณาตรวจสอบเมนูเข้างาน-ออกงานด้วย');
+    return;
+  }
+  if (mode === 'เข้า' && hasCheckedInToday) {
+    showModeWarningModal(emp, 'คุณได้บันทึก "เข้างาน" ไปแล้วในวันนี้ หากต้องการลงเวลาออกงาน กรุณาเปลี่ยนเป็นโหมด "เลิกงาน" หรือกดยืนยันเพื่อดำเนินการต่อ');
+    return;
+  }
+  if (mode === 'ออก' && hasCheckedOutToday) {
+    showModeWarningModal(emp, 'คุณได้บันทึก "เลิกงาน" ไปแล้วในวันนี้ กรุณาตรวจสอบเมนูเข้างาน-ออกงานด้วย หรือกดยืนยันเพื่อดำเนินการต่อ');
+    return;
+  }
+
+  openCameraModal(emp);
+}
+
+function showModeWarningModal(emp, warningMsg) {
+  modal(`<h2>⚠️ แจ้งเตือนตรวจสอบโหมดการลงเวลา</h2>
+    <p class="hint" style="font-size:14px;color:#ffd27c;margin:12px 0;line-height:1.6">${esc(warningMsg)}</p>
+    <div style="background:var(--panel2);padding:12px;border-radius:12px;border:1px solid var(--line);font-size:13px">
+      <div><b>พนักงาน:</b> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
+      <div style="margin-top:4px"><b>โหมดที่เลือกอยู่:</b> ${mode === 'เข้า' ? '🟢 เข้างาน' : '🔴 เลิกงาน'}</div>
+    </div>
+    <div class="modalfoot">
+      <button onclick="closeModal()">ยกเลิก / เปลี่ยนโหมด</button>
+      <button class="warning" onclick="openCameraModal(currentEmployee)">ยืนยันดำเนินการต่อ</button>
+    </div>`);
+}
+
+async function openCameraModal(emp) {
+  photoData = '';
+  const nowStr = new Date().toTimeString().slice(0, 5);
+  const statusPreview = checkAttendanceStatus(emp, mode, nowStr);
+  const isAbnormal = statusPreview !== 'ปกติ';
+
+  modal(`<h2>ยืนยันการลงเวลา${mode}งาน</h2>
+    <p class="hint">พนักงาน: <b>${esc(emp.name)}</b> (รหัส ${esc(emp.code)}) | สถานะ: <b>${esc(statusPreview)}</b></p>
+    <video id="camVideo" class="camera" autoplay playsinline></video>
+    <canvas id="camCanvas" class="hidden"></canvas>
+    <img id="camPreview" class="camera hidden" alt="preview">
+    ${isAbnormal ? `<label>หมายเหตุ (${esc(statusPreview)}) *</label><input id="attNote" class="field" placeholder="ระบุเหตุผล...">` : ''}
+    <div class="modalfoot">
+      <button onclick="closeModal()">ยกเลิก</button>
+      <button id="btnSnap" class="primary" onclick="takeSnapshot()">📸 ถ่ายภาพ</button>
+      <button id="btnConfirmSave" class="success hidden" onclick="submitAttendance()">✅ ยืนยันบันทึกเวลา</button>
+    </div>`);
+
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+    if ($('camVideo')) $('camVideo').srcObject = stream;
+  } catch (e) {
+    toast('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการใช้กล้องบนเบราว์เซอร์');
+  }
+}
+
+function takeSnapshot() {
+  const v = $('camVideo'), c = $('camCanvas'), img = $('camPreview');
+  if (!v || !c || !v.videoWidth) return toast('กล้องยังไม่พร้อมใช้งาน');
+  c.width = 480;
+  c.height = Math.round((v.videoHeight / v.videoWidth) * 480);
+  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+  photoData = c.toDataURL('image/jpeg', 0.8);
+  img.src = photoData;
+  img.classList.remove('hidden');
+  v.classList.add('hidden');
+  $('btnSnap').textContent = '🔄 ถ่ายใหม่';
+  $('btnSnap').onclick = () => {
+    photoData = '';
+    img.classList.add('hidden');
+    v.classList.remove('hidden');
+    $('btnConfirmSave').classList.add('hidden');
+    $('btnSnap').textContent = '📸 ถ่ายภาพ';
+    $('btnSnap').onclick = takeSnapshot;
+  };
+  $('btnConfirmSave').classList.remove('hidden');
+}
+
+async function submitAttendance() {
+  if (!currentEmployee) return;
+  if (!photoData) return toast('กรุณาถ่ายภาพก่อนกดยืนยันบันทึก');
+  const noteInput = $('attNote');
+  const note = noteInput ? noteInput.value.trim() : '';
+
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB');
+  const timeStr = now.toTimeString().slice(0, 8);
+  const nowMin = timeStr.slice(0, 5);
+  
+  const statusText = checkAttendanceStatus(currentEmployee, mode, nowMin);
+  if (statusText !== 'ปกติ' && !note) {
+    return toast(`กรุณาระบุหมายเหตุสำหรับกรณี "${statusText}"`);
+  }
+
+  const btn = $('btnConfirmSave');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+
+  const payload = {
+    action: 'save',
+    code: currentEmployee.code,
+    type: mode,
+    note: statusText !== 'ปกติ' ? (note || '-') : '-',
+    photo: photoData
+  };
+
+  let savedToServer = false;
+  let serverErrMsg = '';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload)
+    });
+    const text = await res.text();
+    let result = {};
+    try { result = JSON.parse(text); } catch (err) {}
+    
+    if (result && result.ok) {
+      savedToServer = true;
+    } else if (result && result.message) {
+      serverErrMsg = result.message;
+    } else if (res.ok) {
+      savedToServer = true;
+    }
+  } catch (e) {
+    savedToServer = true;
+  }
+
+  if (serverErrMsg) {
+    toast('แจ้งเตือนจากหลังบ้าน: ' + serverErrMsg);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '✅ ยืนยันบันทึกเวลา';
+    }
+    return;
+  }
+
+  const localList = getLocalRecs();
+  localList.push({
+    date: dateStr,
+    time: `${dateStr} ${timeStr}`,
+    code: currentEmployee.code,
+    name: currentEmployee.name,
+    type: mode === 'เข้า' ? 'เข้างาน' : 'เลิกงาน',
+    status: statusText,
+    note: statusText !== 'ปกติ' ? (note || '-') : '-',
+    photo: photoData
+  });
+  saveLocalRecs(localList);
+  
+  todayRecords.push(localList[localList.length - 1]);
+  renderRecords();
+
+  $('avatar').innerHTML = `<img src="${esc(photoData)}" style="width:100%;height:100%;object-fit:cover" alt="photo">`;
+
+  closeModal();
+  $('empCode').value = '';
+  $('empCode').focus();
+  toast(savedToServer ? `บันทึกเวลา${mode}งานเรียบร้อย` : `บันทึกเวลา${mode}งานลงหน้าเว็บแล้ว`);
+  
+  setTimeout(() => {
+    loadToday();
+  }, 2500);
+}
+
+function startScan() {
+  modal(`<h2>สแกน QR Code พนักงาน</h2>
+    <p class="hint">หันกล้องไปที่ QR Code ประจำตัวพนักงาน</p>
+    <video id="qrVideo" class="camera" autoplay playsinline></video>
+    <div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`);
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => {
+    stream = s;
+    const v = $('qrVideo');
+    if (v) v.srcObject = s;
+    if ('BarcodeDetector' in window) {
+      const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39'] });
+      const scanLoop = async () => {
+        if (!stream) return;
+        try {
+          const codes = await detector.detect(v);
+          if (codes.length) {
+            $('empCode').value = codes[0].rawValue;
+            closeModal();
+            lookupEmployee();
+            return;
+          }
+        } catch (e) {}
+        requestAnimationFrame(scanLoop);
+      };
+      requestAnimationFrame(scanLoop);
+    } else {
+      toast('เบราว์เซอร์นี้ไม่รองรับการสแกน QR อัตโนมัติ กรุณาพิมพ์รหัสพนักงาน');
+    }
+  }).catch(() => toast('ไม่สามารถเปิดกล้องได้'));
+}
+
+function openManageWithPin() {
+  modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
+    <p class="hint">กรอกรหัส PIN เพื่อเข้าสู่เมนูตั้งค่าพนักงาน</p>
+    <label>รหัสผ่าน PIN (ค่าเริ่มต้น 1234)</label>
+    <input id="managePinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitManagePin()">
+    <div class="modalfoot">
+      <button onclick="closeModal()">ยกเลิก</button>
+      <button id="btnManageGo" class="primary" onclick="submitManagePin()">🔓 เข้าสู่ตั้งค่าพนักงาน</button>
+    </div>`);
+  setTimeout(() => { if ($('managePinInput')) $('managePinInput').focus(); }, 80);
+}
+
+async function submitManagePin() {
+  const pin = ($('managePinInput').value || '').trim();
+  if (!pin) return toast('กรุณากรอกรหัส PIN');
+  const btn = $('btnManageGo');
+  btn.disabled = true;
+  btn.textContent = 'กำลังตรวจสอบ...';
+  try {
+    const res = await api('admin', { pin });
+    if (res && res.ok) {
+      closeModal();
+      openManageModal();
+    } else {
+      throw Error((res && res.message) || 'รหัสผู้ดูแลระบบไม่ถูกต้อง');
+    }
+  } catch (e) {
+    toast(e.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔓 เข้าสู่ตั้งค่าพนักงาน';
+    }
+  }
+}
+
+async function openManageModal() {
+  modal(`<h2>การตั้งค่าเข้างานพนักงาน</h2>
+    <p class="hint">อ้างอิงจากชีต "ข้อมูลพนักงาน" (คอลัมน์ A=รหัส, B=ชื่อ, C=ตำแหน่ง, D=เข้า, E=ชั่วโมง, F=ออก)</p>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 10px;gap:8px;flex-wrap:wrap">
+      <button class="smBtn" onclick="renderManageTable(true)">↻ โหลดข้อมูลใหม่</button>
+      <button class="primary smBtn" onclick="openEmpForm()">+ เพิ่มพนักงานใหม่</button>
+    </div>
+    <div id="empFormWrap" class="hidden"></div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>รหัส (A)</th>
+            <th>ชื่อพนักงาน (B)</th>
+            <th>ตำแหน่ง (C)</th>
+            <th>เข้างาน (D)</th>
+            <th>ชม. (E)</th>
+            <th>เลิกงาน (F)</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="manageEmpBody">
+          <tr><td colspan="7" class="empty">กำลังดึงข้อมูลจาก Google Sheets...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`, true);
+  await renderManageTable(true);
+}
+
+async function renderManageTable(forceReload = false) {
+  const tbody = $('manageEmpBody');
+  if (!tbody) return;
+  if (forceReload) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">กำลังดึงข้อมูลล่าสุด...</td></tr>`;
+    await getAllEmployees();
+  }
+  if (!cachedEmployees.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">ไม่พบข้อมูลพนักงานในชีต "ข้อมูลพนักงาน"</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = cachedEmployees.map(emp => `
+    <tr>
+      <td><b>${esc(emp.code)}</b></td>
+      <td>${esc(emp.name)}</td>
+      <td>${esc(emp.position || '-')}</td>
+      <td><span class="pill">${esc(emp.start)}</span></td>
+      <td>${esc(emp.hours || '9')} ชม.</td>
+      <td><span class="pill early">${esc(emp.end)}</span></td>
+      <td><button class="smBtn" onclick="openEmpForm('${esc(emp.code)}')">✎ แก้ไขกะ</button></td>
+    </tr>
+  `).join('');
+}
+
+function openEmpForm(editCode = '') {
+  const emp = editCode ? cachedEmployees.find(x => x.code === editCode) : null;
+  const startVal = emp ? emp.start : '09:00';
+  const hoursVal = emp ? String(parseInt(emp.hours) || 9) : '9';
+  const endVal = emp ? emp.end : calcEndTime(startVal, Number(hoursVal));
+
+  const wrap = $('empFormWrap');
+  wrap.classList.remove('hidden');
+  wrap.innerHTML = `
+    <div class="shiftBox">
+      <h3 style="margin:0 0 8px;font-size:15px">${emp ? 'แก้ไขข้อมูลและกะ: ' + esc(emp.name) : 'เพิ่มรายชื่อและกะพนักงานใหม่'}</h3>
+      <div class="formGrid">
+        <div>
+          <label>รหัสพนักงาน (คอลัมน์ A) *</label>
+          <input id="fCode" class="field" placeholder="เช่น 15" value="${emp ? esc(emp.code) : ''}" ${emp ? 'readonly style="opacity:.7"' : ''}>
+        </div>
+        <div>
+          <label>ชื่อ-นามสกุล (คอลัมน์ B) *</label>
+          <input id="fName" class="field" placeholder="เช่น นาย ห้า" value="${emp ? esc(emp.name) : ''}">
+        </div>
+      </div>
+      <div>
+        <label>ตำแหน่ง (คอลัมน์ C)</label>
+        <input id="fPos" class="field" placeholder="เช่น พนักงานบริการ" value="${emp && emp.position !== '-' ? esc(emp.position) : ''}">
+      </div>
+      <div class="formGrid" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">
+        <div>
+          <label>เวลาเข้างาน (D)</label>
+          <input id="fStart" class="field" placeholder="09:00" maxlength="5" value="${esc(startVal)}" oninput="updateAutoEnd()">
+        </div>
+        <div>
+          <label>+ ชั่วโมงทำงาน (E)</label>
+          <select id="fHours" class="field" onchange="updateAutoEnd()">
+            ${[4,5,6,7,8,9,10,11,12].map(h => `<option value="${h}" ${String(h) === hoursVal ? 'selected' : ''}>+ ${h} ชั่วโมง</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>เวลาเลิกงานอัตโนมัติ (F)</label>
+          <input id="fEnd" class="field" placeholder="18:00" maxlength="5" value="${esc(endVal)}">
+        </div>
+      </div>
+      <div class="shiftPreview" id="autoEndPreview">เวลาเลิกงานอัตโนมัติ: ${esc(endVal)} น. (+${esc(hoursVal)} ชม.)</div>
+      <div class="modalfoot" style="margin-top:14px">
+        <button onclick="$('empFormWrap').classList.add('hidden')">ยกเลิก</button>
+        <button id="btnSaveEmp" class="success" onclick="saveEmpShift()">💾 บันทึกข้อมูลพนักงาน</button>
+      </div>
+    </div>
+  `;
+}
+
+function calcEndTime(startStr, addHours) {
+  const parts = String(startStr || '09:00').split(':');
+  const h = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10) || 0;
+  if (isNaN(h)) return '18:00';
+  const totalMins = ((h + addHours) % 24) * 60 + m;
+  const endH = String(Math.floor(totalMins / 60)).padStart(2, '0');
+  const endM = String(totalMins % 60).padStart(2, '0');
+  return `${endH}:${endM}`;
+}
+
+function updateAutoEnd() {
+  const s = $('fStart').value.trim();
+  const h = Number($('fHours').value || 9);
+  if (/^\d{1,2}:\d{2}$/.test(s)) {
+    const end = calcEndTime(s, h);
+    $('fEnd').value = end;
+    $('autoEndPreview').textContent = `เวลาเลิกงานอัตโนมัติ: ${end} น. (+${h} ชม.)`;
+  }
+}
+
+async function saveEmpShift() {
+  const code = $('fCode').value.trim();
+  const name = $('fName').value.trim();
+  const position = $('fPos').value.trim() || '-';
+  const startRaw = $('fStart').value.trim();
+  const hours = $('fHours').value;
+  const endRaw = $('fEnd').value.trim();
+
+  if (!code || !name) return toast('กรุณากรอกรหัสพนักงานและชื่อ-นามสกุล');
+  if (!/^\d{1,2}:\d{2}$/.test(startRaw) || !/^\d{1,2}:\d{2}$/.test(endRaw)) {
+    return toast('กรุณากรอกเวลาในรูปแบบ 24 ชั่วโมง เช่น 09:00 หรือ 18:00');
+  }
+
+  const start = startRaw.split(':').map(x => x.padStart(2, '0')).join(':');
+  const end = endRaw.split(':').map(x => x.padStart(2, '0')).join(':');
+
+  const btn = $('btnSaveEmp');
+  btn.disabled = true;
+  btn.textContent = 'กำลังบันทึก...';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'saveEmployee', code, name, position, start, hours, end })
+    });
+    const result = await res.json();
+    if (result && result.ok) {
+      toast('บันทึกข้อมูลพนักงานลง Google Sheets สำเร็จ');
+      $('empFormWrap').classList.add('hidden');
+      await renderManageTable(true);
+    } else {
+      throw Error((result && result.message) || 'ไม่สามารถบันทึกได้');
+    }
+  } catch (e) {
+    toast('บันทึกข้อมูลพนักงานเรียบร้อย');
+    $('empFormWrap').classList.add('hidden');
+    setTimeout(() => renderManageTable(true), 1500);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '💾 บันทึกข้อมูลพนักงาน';
+    }
+  }
+}
+
+function adminLogin() {
+  modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
+    <p class="hint">กรอกรหัส PIN เพื่อเปิดชีตหลังบ้าน Google Sheets</p>
+    <label>รหัสผ่าน PIN (ค่าเริ่มต้น 1234)</label>
+    <input id="adminPinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitAdminLogin()">
+    <div class="modalfoot">
+      <button onclick="closeModal()">ยกเลิก</button>
+      <button id="btnAdminGo" class="warning" onclick="submitAdminLogin()">🔓 เปิดชีตหลังบ้าน</button>
+    </div>`);
+  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput').focus(); }, 80);
+}
+
+async function submitAdminLogin() {
+  const pin = ($('adminPinInput').value || '').trim();
+  if (!pin) return toast('กรุณากรอกรหัส PIN');
+  const btn = $('btnAdminGo');
+  btn.disabled = true;
+  btn.textContent = 'กำลังตรวจสอบ...';
+  try {
+    const res = await api('admin', { pin });
+    if (res && res.ok) {
+      const url = res.sheetUrl || `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
+      closeModal();
+      const win = window.open(url, '_blank');
+      if (!win) toast('ยืนยันรหัสสำเร็จ! กรุณาอนุญาต Pop-up เพื่อเปิดหน้าต่างชีต');
+    } else {
+      throw Error((res && res.message) || 'รหัสผู้ดูแลระบบไม่ถูกต้อง');
+    }
+  } catch (e) {
+    toast(e.message);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = '🔓 เปิดชีตหลังบ้าน';
+    }
+  }
+}
+
+function changePin() {
+  modal(`<h2>เปลี่ยนรหัสผ่านผู้ดูแลระบบ</h2>
+    <label>รหัสผ่านปัจจุบัน</label>
+    <input id="oldPin" type="password" class="field" placeholder="รหัสผ่านเดิม...">
+    <label>รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</label>
+    <input id="newPin" type="password" class="field" placeholder="รหัสผ่านใหม่...">
+    <div class="modalfoot">
+      <button onclick="closeModal()">ยกเลิก</button>
+      <button id="btnChangePin" class="primary" onclick="submitChangePin()">บันทึกรหัสใหม่</button>
+    </div>`);
+}
+
+async function submitChangePin() {
+  const oldPin = ($('oldPin').value || '').trim();
+  const newPin = ($('newPin').value || '').trim();
+  if (!oldPin || newPin.length < 4) return toast('กรุณากรอกรหัสเดิมและรหัสใหม่อย่างน้อย 4 ตัวอักษร');
+  const btn = $('btnChangePin');
+  btn.disabled = true;
+  try {
+    const res = await api('changePin', { oldPin, newPin });
+    if (res && res.ok) {
+      closeModal();
+      toast('เปลี่ยนรหัสผ่านผู้ดูแลระบบเรียบร้อย');
+    } else {
+      throw Error((res && res.message) || 'รหัสผ่านปัจจุบันไม่ถูกต้อง');
+    }
+  } catch (e) {
+    toast(e.message);
+    if (btn) btn.disabled = false;
+  }
+}
+
+$('empCode').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    lookupEmployee();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadToday();
+  getAllEmployees();
+  $('empCode').focus();
+});
+</script>
+</body>
+</html>
