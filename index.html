@@ -279,6 +279,7 @@ function tick() {
   $('dateText').textContent = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 setInterval(tick, 1000);
+
 function modal(html, wide = false) {
   const box = $('modalContent');
   box.classList.toggle('wide', wide);
@@ -302,7 +303,6 @@ function getLocalRecs() {
 function saveLocalRecs(list) {
   localStorage.setItem('att-local-recs', JSON.stringify(list));
 }
-localStorage.removeItem('att-local-emps');
 
 function jsonp(params) {
   return new Promise((resolve, reject) => {
@@ -332,25 +332,6 @@ function isTodayRecord(rec) {
   return rawDate.includes(iso) || rawDate.includes(thDate) || rawDate.includes(enDate);
 }
 
-function timeToMinutes(t) {
-  const parts = String(t || '00:00').split(':').map(Number);
-  return (parts[0] || 0) * 60 + (parts[1] || 0);
-}
-
-function checkAttendanceStatus(emp, currentMode, timeStr) {
-  const curMins = timeToMinutes(timeStr);
-  const startMins = timeToMinutes(emp.start);
-  const endMins = timeToMinutes(emp.end);
-
-  if (currentMode === 'เข้า') {
-    if (curMins > startMins) return 'สาย';
-    return 'ปกติ';
-  } else {
-    if (curMins < endMins) return 'เลิกงานก่อนเวลา';
-    return 'ปกติ';
-  }
-}
-
 function fetchSheetRows(sheetName, gid) {
   return new Promise((resolve, reject) => {
     const cb = 'gviz_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
@@ -364,7 +345,7 @@ function fetchSheetRows(sheetName, gid) {
         const cells = r.c || [];
         const obj = {};
         for (let i = 0; i < 10; i++) {
-          obj['col' + i] = cells[i] ? (cells[i].f !== undefined && cells[i].f !== null ? cells[i].f : (cells[i].v !== undefined && cells[i].v !== null ? cells[i].v : '')) : '';
+          obj['col' + i] = cells[i] ? (cells[i].f !== undefined && cells[i].f !== null ? String(cells[i].f) : (cells[i].v !== undefined && cells[i].v !== null ? String(cells[i].v) : '')) : '';
         }
         return obj;
       });
@@ -380,8 +361,26 @@ function fetchSheetRows(sheetName, gid) {
 
 function normalizeRecord(r) {
   if (r.col0 !== undefined) {
-    const date = String(r.col0 || '').trim();
-    const time = String(r.col1 || '').trim();
+    let date = String(r.col0 || '').trim();
+    let time = String(r.col1 || '').trim();
+    if (date.includes('Date(')) {
+      try {
+        const m = date.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
+        if (m) {
+          const dt = new Date(m[1], m[2], m[3], m[4] || 0, m[5] || 0, m[6] || 0);
+          date = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear() + 543}`;
+        }
+      } catch (e) {}
+    }
+    if (time.includes('Date(')) {
+      try {
+        const m = time.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
+        if (m) {
+          const dt = new Date(m[1], m[2], m[3], m[4], m[5], m[6]);
+          time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
+        }
+      } catch (e) {}
+    }
     const type = String(r.col2 || '').trim();
     const code = String(r.col3 || '').trim();
     const name = String(r.col4 || '').trim();
@@ -394,17 +393,15 @@ function normalizeRecord(r) {
       code, name, type, status, note, photo
     };
   }
-  const date = String(r.date || r['วันที่'] || '').trim();
-  const time = String(r.time || r['เวลา'] || r['เวลาบันทึก'] || '').trim();
   return {
-    date,
-    time: date && time && !time.includes(date) ? `${date} ${time}` : (time || date || '-'),
-    code: String(r.code || r['รหัสพนักงาน'] || r['รหัส'] || '').trim(),
-    name: String(r.name || r['ชื่อพนักงาน'] || r['ชื่อ'] || '').trim(),
-    type: String(r.type || r['เข้า/ออก'] || r['ประเภท'] || '').trim(),
-    status: String(r.status || r['สถานะ'] || 'ปกติ').trim(),
-    note: String(r.note || r['หมายเหตุ'] || '-').trim(),
-    photo: String(r.photo || r['รูป'] || r['รูปถ่าย'] || '').trim()
+    date: String(r.date || '').trim(),
+    time: String(r.time || '').trim(),
+    code: String(r.code || '').trim(),
+    name: String(r.name || '').trim(),
+    type: String(r.type || '').trim(),
+    status: String(r.status || 'ปกติ').trim(),
+    note: String(r.note || '-').trim(),
+    photo: String(r.photo || '').trim()
   };
 }
 
@@ -422,34 +419,16 @@ function normalizeEmployee(e) {
   };
 
   if (e.col0 !== undefined) {
-    const code = String(e.col0 || '').trim();
-    const name = String(e.col1 || '').trim();
-    const position = String(e.col2 || '-').trim();
-    const startRaw = String(e.col3 || '09:00').trim();
-    const col4Raw = String(e.col4 || '').trim();
-    const col5Raw = String(e.col5 || '').trim();
-
-    let hoursRaw = '9';
-    let endRaw = '18:00';
-    if (col5Raw && col5Raw.includes(':')) {
-      hoursRaw = col4Raw.split(':')[0] || '9';
-      endRaw = col5Raw;
-    } else if (col4Raw && col4Raw.includes(':')) {
-      endRaw = col4Raw;
-      hoursRaw = col5Raw || '9';
-    }
-
     return {
-      code,
-      name,
-      position,
-      start: cleanTime(startRaw, '09:00'),
-      end: cleanTime(endRaw, '18:00'),
-      hours: String(parseFloat(hoursRaw) || 9),
+      code: String(e.col0 || '').trim(),
+      name: String(e.col1 || '').trim(),
+      position: String(e.col2 || '-').trim(),
+      start: cleanTime(e.col3, '09:00'),
+      end: cleanTime(e.col5 || e.col4, '18:00'),
+      hours: String(parseFloat(e.col4 || e.col5) || 9),
       photo: ''
     };
   }
-
   return {
     code: String(e.code || '').trim(),
     name: String(e.name || '').trim(),
@@ -488,308 +467,313 @@ async function loadToday() {
     if (btn) btn.disabled = false;
   }
 
-  const localRecs = getLocalRecs();
-  const map = new Map();
-  [...serverRecs, ...localRecs].forEach(r => {
-    if (r.code && r.time) {
-      map.set(`${r.date}_${r.time}_${r.code}_${r.type}`, r);
-    }
-  });
-  
-  todayRecords = Array.from(map.values());
+  // ป้องกันรายการซ้ำโดยใช้คีย์รหัสพนักงาน + ประเภทการลงเวลา + เวลาบันทึกที่ตรงกันเป๊ะ
+  const mergedMap = new Map();
+  for (let r of serverRecs) {
+    const uniqueKey = `${r.code}|${r.type}|${r.time}`;
+    mergedMap.set(uniqueKey, r);
+  }
+
+  todayRecords = Array.from(mergedMap.values());
   renderRecords();
 }
 
 function renderRecords() {
   const tbody = $('records');
-  if (!tbody) return;
-  let list = onlyTodayFilter ? todayRecords.filter(isTodayRecord) : todayRecords;
-  if (!list.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">ยังไม่มีประวัติการลงเวลา</td></tr>`;
+  if (!todayRecords || todayRecords.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">ยังไม่มีประวัติการลงเวลาในระบบ</td></tr>';
     return;
   }
-  tbody.innerHTML = list.slice().reverse().map(r => {
-    const isLate = String(r.status).includes('สาย');
-    const isEarly = String(r.status).includes('ก่อน');
-    const pillClass = isLate ? 'pill late' : (isEarly ? 'pill early' : 'pill');
-    const imgHtml = r.photo && r.photo !== '-'
-      ? `<img src="${esc(r.photo)}" alt="photo" onerror="this.style.display='none'">`
-      : `<div style="width:40px;height:40px;border-radius:8px;background:#233149;display:grid;place-items:center;font-size:14px">📷</div>`;
-    return `<tr>
-      <td>${imgHtml}</td>
-      <td><b>${esc(r.code)}</b></td>
+
+  let list = todayRecords;
+  if (onlyTodayFilter) {
+    list = list.filter(isTodayRecord);
+  }
+
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">ไม่มีประวัติการลงเวลาสำหรับวันนี้</td></tr>';
+    return;
+  }
+
+  let html = '';
+  const sorted = [...list].reverse();
+  for (let r of sorted) {
+    let pClass = 'pill';
+    let sText = esc(r.status || 'ปกติ');
+    if (sText.includes('สาย')) pClass += ' late';
+    else if (sText.includes('ก่อนเวลา')) pClass += ' early';
+
+    let photoHtml = '<div style="width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)">♙</div>';
+    if (r.photo && r.photo.startsWith('data:image')) {
+      photoHtml = `<img src="${esc(r.photo)}" alt="photo" onerror="this.outerHTML='<div style=\\\'width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)\\\'>♙</div>'">`;
+    }
+
+    html += `<tr>
+      <td>${photoHtml}</td>
+      <td><strong>${esc(r.code)}</strong></td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.type)}</td>
-      <td><span class="${pillClass}">${esc(r.status || 'ปกติ')}</span></td>
+      <td><span class="${pClass}">${sText}</span></td>
       <td>${esc(r.note || '-')}</td>
       <td>${esc(r.time)}</td>
     </tr>`;
-  }).join('');
-}
-
-async function getAllEmployees() {
-  try {
-    const res = await api('employees');
-    if (res && res.ok && Array.isArray(res.employees)) {
-      cachedEmployees = res.employees.map(normalizeEmployee).filter(e => e.code);
-      return cachedEmployees;
-    }
-  } catch (e) {}
-
-  try {
-    const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
-    const map = new Map();
-    rows.map(normalizeEmployee).filter(e => e.code && e.code !== 'รหัสพนักงาน').forEach(emp => {
-      map.set(emp.code, emp);
-    });
-    cachedEmployees = Array.from(map.values());
-  } catch (err) {
-    cachedEmployees = [];
   }
-  return cachedEmployees;
+  tbody.innerHTML = html;
 }
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadToday();
+  const empInput = $('empCode');
+  if (empInput) {
+    empInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        lookupEmployee();
+      }
+    });
+  }
+});
 
 async function lookupEmployee() {
-  const code = ($('empCode').value || '').trim();
-  if (!code) return toast('กรุณากรอกหรือสแกนรหัสพนักงาน');
-
+  const code = $('empCode').value.trim();
+  if (!code) return toast('กรุณากรอกรหัสพนักงาน');
+  
   let emp = null;
   try {
-    const res = await api('lookup', { code });
-    if (res && res.ok && res.employee) {
-      emp = normalizeEmployee(res.employee);
-      emp.isLate = res.employee.isLate;
-      emp.isEarly = res.employee.isEarly;
-    }
-  } catch (e) {}
+    const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
+    const emps = rows.map(normalizeEmployee).filter(x => x.code && x.code !== 'รหัสพนักงาน' && x.code !== 'รหัส');
+    cachedEmployees = emps;
+    emp = emps.find(x => x.code.toLowerCase() === code.toLowerCase());
+  } catch (err) {
+    try {
+      const res = await api('lookup', { code });
+      if (res && res.ok) emp = res.employee;
+    } catch (e) {}
+  }
 
-  if (!emp) {
-    if (!cachedEmployees.length) await getAllEmployees();
+  if (!emp && cachedEmployees.length > 0) {
     emp = cachedEmployees.find(x => x.code.toLowerCase() === code.toLowerCase());
   }
 
-  if (!emp) {
-    return toast(`ไม่พบรหัสพนักงาน "${code}" ในชีตข้อมูลพนักงาน`);
-  }
-
+  if (!emp) return toast('ไม่พบรหัสพนักงาน "' + code + '" ในระบบ');
   currentEmployee = emp;
-  $('employeeResult').classList.remove('hidden');
-  $('empName').textContent = `${emp.name} (รหัส ${emp.code})`;
-  $('empMeta').textContent = `ตำแหน่ง: ${emp.position || '-'} | โหมดปัจจุบัน: ${mode}งาน`;
-  $('empShift').textContent = `เวลาเข้างาน: ${emp.start} น. | เลิกงาน: ${emp.end} น.`;
+  
+  const isInMode = (mode === 'เข้า');
+  const hasCheckedIn = todayRecords.some(r => r.code === emp.code && r.type.includes('เข้า') && isTodayRecord(r));
+  const hasCheckedOut = todayRecords.some(r => r.code === emp.code && (r.type.includes('ออก') || r.type.includes('เลิก')) && isTodayRecord(r));
 
-  const latestRecWithPhoto = todayRecords.slice().reverse().find(r => r.code.toLowerCase() === emp.code.toLowerCase() && r.photo && r.photo !== '-');
-  if (latestRecWithPhoto) {
-    $('avatar').innerHTML = `<img src="${esc(latestRecWithPhoto.photo)}" style="width:100%;height:100%;object-fit:cover" alt="photo" onerror="this.parentElement.innerHTML='♙'">`;
+  // 1. ตรวจสอบกรณีลงชื่อซ้ำในโหมดเดียวกันวันนี้
+  if ((isInMode && hasCheckedIn) || (!isInMode && hasCheckedOut)) {
+    const modeName = isInMode ? 'เข้างาน' : 'เลิกงาน';
+    const oppositeName = isInMode ? 'เลิกงาน' : 'เข้างาน';
+    modal(`
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนตรวจสอบโหมดการลงเวลา</h2>
+        <p class="hint" style="margin:0">คุณได้บันทึก "${modeName}" ไปแล้วในวันนี้ หากต้องการลงเวลา${oppositeName} กรุณาเปลี่ยนเป็นโหมด "${oppositeName}" หรือกดยืนยันเพื่อดำเนินการต่อ</p>
+      </div>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
+        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
+        <div style="margin-top:4px"><strong>โหมดที่เลือกอยู่:</strong> ${isInMode ? '🟢 เข้างาน' : '🔴 เลิกงาน'} (สถานะในชีตหลังบ้าน: ซ้ำ)</div>
+      </div>
+      <div class="modalfoot" style="justify-content:center;gap:12px">
+        <button onclick="closeModal()">ยกเลิก / เปลี่ยนโหมด</button>
+        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, true, false, false);">ยืนยันดำเนินการต่อ</button>
+      </div>
+    `);
+    return;
+  }
+
+  const currentTime = new Date();
+  const timeStr = `${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`;
+  const isEarlyOut = (!isInMode && timeStr < emp.end);
+
+  // 2. ตรวจสอบกรณีเลิกงานก่อนเวลา
+  if (isEarlyOut) {
+    modal(`
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนเลิกงานก่อนเวลา</h2>
+        <p class="hint" style="margin:0">เวลาปัจจุบัน (${timeStr}) เร็วกว่าเวลาเลิกงานที่กำหนด (${emp.end} น.) สถานะในชีตหลังบ้านจะบันทึกเป็น "เลิกงานก่อนเวลา" และบังคับระบุหมายเหตุ</p>
+      </div>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
+        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
+        <div style="margin-top:4px"><strong>เวลาเลิกงานตามกะ:</strong> ${emp.end} น.</div>
+      </div>
+      <div class="modalfoot" style="justify-content:center;gap:12px">
+        <button onclick="closeModal()">ยกเลิก</button>
+        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, false, true, false);">ยืนยันดำเนินการต่อ</button>
+      </div>
+    `);
+    return;
+  }
+
+  // 3. ตรวจสอบกรณีสแกนออก แต่ยังไม่ได้สแกนเข้าในวันนี้
+  if (!isInMode && !hasCheckedIn) {
+    modal(`
+      <div style="text-align:center;margin-bottom:12px">
+        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
+        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนยังไม่ได้สแกนเข้างาน</h2>
+        <p class="hint" style="margin:0">คุณพยายามสแกน "ออกงาน" แต่ยังไม่มีประวัติการสแกน "เข้างาน" ในวันนี้ สถานะในชีตหลังบ้านจะบันทึกเป็น "ไม่ได้สแกนหน้าเข้างาน" และ <strong>บังคับระบุหมายเหตุ</strong></p>
+      </div>
+      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
+        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
+      </div>
+      <div class="modalfoot" style="justify-content:center;gap:12px">
+        <button onclick="closeModal()">ยกเลิก</button>
+        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, false, false, true);">ยืนยันดำเนินการต่อ</button>
+      </div>
+    `);
+    return;
+  }
+
+  openCameraModal(emp, false, false, false);
+}
+
+function startScan() {
+  const code = prompt('จำลองการสแกน QR / บัตรพนักงาน:\nกรุณากรอกรหัสพนักงาน:');
+  if (code) {
+    $('empCode').value = code.trim();
+    lookupEmployee();
+  }
+}
+
+function openCameraModal(emp, isDuplicate = false, isEarlyOut = false, missingCheckIn = false) {
+  const currentTime = new Date();
+  const timeStr = `${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`;
+  
+  let isLate = false;
+  let isEarly = isEarlyOut;
+  if (mode === 'เข้า') {
+    isLate = (timeStr > emp.start);
   } else {
-    $('avatar').innerHTML = '♙';
+    isEarly = isEarly || (timeStr < emp.end);
   }
+  const isAbnormal = isLate || isEarly || isDuplicate || missingCheckIn;
 
-  const empTodayRecs = todayRecords.filter(r => isTodayRecord(r) && r.code.toLowerCase() === emp.code.toLowerCase());
-  const hasCheckedInToday = empTodayRecs.some(r => String(r.type).includes('เข้า'));
-  const hasCheckedOutToday = empTodayRecs.some(r => String(r.type).includes('ออก') || String(r.type).includes('เลิก'));
-
-  if (mode === 'ออก' && !hasCheckedInToday) {
-    showModeWarningModal(emp, 'คุณเลือกโหมด "เลิกงาน" แต่ยังไม่มีประวัติสแกน "เข้างาน" ในวันนี้ กรุณาตรวจสอบเมนูเข้างาน-ออกงานด้วย');
-    return;
-  }
-  if (mode === 'เข้า' && hasCheckedInToday) {
-    showModeWarningModal(emp, 'คุณได้บันทึก "เข้างาน" ไปแล้วในวันนี้ หากต้องการลงเวลาออกงาน กรุณาเปลี่ยนเป็นโหมด "เลิกงาน" หรือกดยืนยันเพื่อดำเนินการต่อ');
-    return;
-  }
-  if (mode === 'ออก' && hasCheckedOutToday) {
-    showModeWarningModal(emp, 'คุณได้บันทึก "เลิกงาน" ไปแล้วในวันนี้ กรุณาตรวจสอบเมนูเข้างาน-ออกงานด้วย หรือกดยืนยันเพื่อดำเนินการต่อ');
-    return;
-  }
-
-  openCameraModal(emp);
-}
-
-function showModeWarningModal(emp, warningMsg) {
-  modal(`<h2>⚠️ แจ้งเตือนตรวจสอบโหมดการลงเวลา</h2>
-    <p class="hint" style="font-size:14px;color:#ffd27c;margin:12px 0;line-height:1.6">${esc(warningMsg)}</p>
-    <div style="background:var(--panel2);padding:12px;border-radius:12px;border:1px solid var(--line);font-size:13px">
-      <div><b>พนักงาน:</b> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
-      <div style="margin-top:4px"><b>โหมดที่เลือกอยู่:</b> ${mode === 'เข้า' ? '🟢 เข้างาน' : '🔴 เลิกงาน'}</div>
-    </div>
-    <div class="modalfoot">
-      <button onclick="closeModal()">ยกเลิก / เปลี่ยนโหมด</button>
-      <button class="warning" onclick="openCameraModal(currentEmployee)">ยืนยันดำเนินการต่อ</button>
-    </div>`);
-}
-
-async function openCameraModal(emp) {
-  photoData = '';
-  const nowStr = new Date().toTimeString().slice(0, 5);
-  const statusPreview = checkAttendanceStatus(emp, mode, nowStr);
-  const isAbnormal = statusPreview !== 'ปกติ';
-
-  modal(`<h2>ยืนยันการลงเวลา${mode}งาน</h2>
-    <p class="hint">พนักงาน: <b>${esc(emp.name)}</b> (รหัส ${esc(emp.code)}) | สถานะ: <b>${esc(statusPreview)}</b></p>
-    <video id="camVideo" class="camera" autoplay playsinline></video>
+  modal(`
+    <h2>ถ่ายภาพยืนยันตัวตน — ${esc(emp.name)} (${esc(emp.code)})</h2>
+    <p class="hint">ตำแหน่ง: ${esc(emp.position)} | โหมด: ${esc(mode)}งาน ${isLate ? '<span style="color:var(--red)">(มาสาย)</span>' : ''} ${isEarly ? '<span style="color:var(--amber)">(เลิกงานก่อนเวลา)</span>' : ''} ${isDuplicate ? '<span style="color:var(--amber)">(ลงชื่อซ้ำ)</span>' : ''} ${missingCheckIn ? '<span style="color:var(--amber)">(ไม่ได้สแกนหน้าเข้างาน)</span>' : ''}</p>
+    <video id="camVideo" class="camera" autoplay playsinline muted></video>
     <canvas id="camCanvas" class="hidden"></canvas>
-    <img id="camPreview" class="camera hidden" alt="preview">
-    ${isAbnormal ? `<label>หมายเหตุ (${esc(statusPreview)}) *</label><input id="attNote" class="field" placeholder="ระบุเหตุผล...">` : ''}
+    <label>${isAbnormal ? '<span style="color:var(--red)">* บังคับระบุหมายเหตุ (เนื่องจากมีความผิดปกติ / ลงซ้ำ / ไม่ได้สแกนหน้าเข้างาน / มาสาย / เลิกงานก่อนเวลา)</span>' : 'หมายเหตุ (ไม่จำเป็นต้องกรอกกรณีปกติ)'}</label>
+    <input id="modalNote" class="field" placeholder="${isAbnormal ? 'กรุณาระบุเหตุผล/หมายเหตุ (บังคับกรอก)...' : 'ระบุหมายเหตุ (ถ้ามี)...'}">
     <div class="modalfoot">
       <button onclick="closeModal()">ยกเลิก</button>
-      <button id="btnSnap" class="primary" onclick="takeSnapshot()">📸 ถ่ายภาพ</button>
-      <button id="btnConfirmSave" class="success hidden" onclick="submitAttendance()">✅ ยืนยันบันทึกเวลา</button>
-    </div>`);
+      <button class="primary" onclick="captureAndSubmit(${isDuplicate}, ${missingCheckIn}, ${isAbnormal})">📸 ถ่ายภาพและบันทึกเวลา</button>
+    </div>
+  `);
 
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
-    if ($('camVideo')) $('camVideo').srcObject = stream;
-  } catch (e) {
-    toast('ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการใช้กล้องบนเบราว์เซอร์');
-  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
+    .then(s => {
+      stream = s;
+      const v = $('camVideo');
+      if (v) { v.srcObject = s; }
+    })
+    .catch(e => {
+      toast('ไม่สามารถเปิดกล้องได้: ' + e.message);
+    });
 }
 
-function takeSnapshot() {
-  const v = $('camVideo'), c = $('camCanvas'), img = $('camPreview');
-  if (!v || !c || !v.videoWidth) return toast('กล้องยังไม่พร้อมใช้งาน');
-  c.width = 480;
-  c.height = Math.round((v.videoHeight / v.videoWidth) * 480);
-  c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
-  photoData = c.toDataURL('image/jpeg', 0.8);
-  img.src = photoData;
-  img.classList.remove('hidden');
-  v.classList.add('hidden');
-  $('btnSnap').textContent = '🔄 ถ่ายใหม่';
-  $('btnSnap').onclick = () => {
-    photoData = '';
-    img.classList.add('hidden');
-    v.classList.remove('hidden');
-    $('btnConfirmSave').classList.add('hidden');
-    $('btnSnap').textContent = '📸 ถ่ายภาพ';
-    $('btnSnap').onclick = takeSnapshot;
-  };
-  $('btnConfirmSave').classList.remove('hidden');
-}
-
-async function submitAttendance() {
-  if (!currentEmployee) return;
-  if (!photoData) return toast('กรุณาถ่ายภาพก่อนกดยืนยันบันทึก');
-  const noteInput = $('attNote');
+function captureAndSubmit(isDuplicate = false, missingCheckIn = false, requireNote = false) {
+  const noteInput = $('modalNote');
   const note = noteInput ? noteInput.value.trim() : '';
-
-  const now = new Date();
-  const dateStr = now.toLocaleDateString('en-GB');
-  const timeStr = now.toTimeString().slice(0, 8);
-  const nowMin = timeStr.slice(0, 5);
-  
-  const statusText = checkAttendanceStatus(currentEmployee, mode, nowMin);
-  if (statusText !== 'ปกติ' && !note) {
-    return toast(`กรุณาระบุหมายเหตุสำหรับกรณี "${statusText}"`);
+  if (requireNote && !note) {
+    toast('กรุณาระบุหมายเหตุ (บังคับกรอกเนื่องจากมีความผิดปกติหรือลงชื่อซ้ำ)');
+    if (noteInput) noteInput.focus();
+    return;
   }
 
-  const btn = $('btnConfirmSave');
-  btn.disabled = true;
-  btn.textContent = 'กำลังบันทึก...';
+  const video = $('camVideo');
+  const canvas = $('camCanvas');
+  if (!video || !canvas) return toast('กล้องไม่พร้อมใช้งาน');
 
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  photoData = canvas.toDataURL('image/jpeg', 0.85);
+
+  closeModal();
+  submitAttendance(currentEmployee, photoData, note, isDuplicate, missingCheckIn);
+}
+
+async function submitAttendance(emp, photo, note, isDuplicate = false, missingCheckIn = false) {
+  toast('กำลังบันทึกข้อมูล...');
   const payload = {
     action: 'save',
-    code: currentEmployee.code,
+    code: emp.code,
     type: mode,
-    note: statusText !== 'ปกติ' ? (note || '-') : '-',
-    photo: photoData
+    note: note || '-',
+    photo: photo,
+    isDuplicate: isDuplicate ? '1' : '0',
+    missingCheckIn: missingCheckIn ? '1' : '0'
   };
-
-  let savedToServer = false;
-  let serverErrMsg = '';
 
   try {
     const res = await fetch(API_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
     });
-    const text = await res.text();
-    let result = {};
-    try { result = JSON.parse(text); } catch (err) {}
-    
-    if (result && result.ok) {
-      savedToServer = true;
-    } else if (result && result.message) {
-      serverErrMsg = result.message;
-    } else if (res.ok) {
-      savedToServer = true;
+    const data = await res.json();
+    if (data && data.ok) {
+      toast('บันทึกเวลาสำเร็จ!');
+      $('empCode').value = '';
+      
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+      const dateStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      
+      let finalStatus = 'ปกติ';
+      if (missingCheckIn) finalStatus = 'ไม่ได้สแกนหน้าเข้างาน';
+      else if (isDuplicate) finalStatus = 'ซ้ำ';
+      else {
+        const timeHHmm = timeStr.substring(0, 5);
+        if (mode === 'เข้า' && timeHHmm > emp.start) finalStatus = 'สาย';
+        if (mode === 'ออก' && timeHHmm < emp.end) finalStatus = 'เลิกงานก่อนเวลา';
+      }
+
+      const newRec = {
+        date: dateStr,
+        time: `${dateStr} ${timeStr}`,
+        code: emp.code,
+        name: emp.name,
+        type: mode === 'เข้า' ? 'เข้างาน' : 'เลิกงาน',
+        status: finalStatus,
+        note: note || '-',
+        photo: photo
+      };
+      const local = getLocalRecs();
+      local.push(newRec);
+      saveLocalRecs(local);
+
+      loadToday();
+      showEmployeeCard(emp, newRec);
+    } else {
+      throw new Error(data.message || 'บันทึกไม่สำเร็จ');
     }
-  } catch (e) {
-    savedToServer = true;
+  } catch (err) {
+    toast('ข้อผิดพลาด: ' + err.message);
   }
-
-  if (serverErrMsg) {
-    toast('แจ้งเตือนจากหลังบ้าน: ' + serverErrMsg);
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '✅ ยืนยันบันทึกเวลา';
-    }
-    return;
-  }
-
-  const localList = getLocalRecs();
-  localList.push({
-    date: dateStr,
-    time: `${dateStr} ${timeStr}`,
-    code: currentEmployee.code,
-    name: currentEmployee.name,
-    type: mode === 'เข้า' ? 'เข้างาน' : 'เลิกงาน',
-    status: statusText,
-    note: statusText !== 'ปกติ' ? (note || '-') : '-',
-    photo: photoData
-  });
-  saveLocalRecs(localList);
-  
-  todayRecords.push(localList[localList.length - 1]);
-  renderRecords();
-
-  $('avatar').innerHTML = `<img src="${esc(photoData)}" style="width:100%;height:100%;object-fit:cover" alt="photo">`;
-
-  closeModal();
-  $('empCode').value = '';
-  $('empCode').focus();
-  toast(savedToServer ? `บันทึกเวลา${mode}งานเรียบร้อย` : `บันทึกเวลา${mode}งานลงหน้าเว็บแล้ว`);
-  
-  setTimeout(() => {
-    loadToday();
-  }, 2500);
 }
 
-function startScan() {
-  modal(`<h2>สแกน QR Code พนักงาน</h2>
-    <p class="hint">หันกล้องไปที่ QR Code ประจำตัวพนักงาน</p>
-    <video id="qrVideo" class="camera" autoplay playsinline></video>
-    <div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`);
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } }).then(s => {
-    stream = s;
-    const v = $('qrVideo');
-    if (v) v.srcObject = s;
-    if ('BarcodeDetector' in window) {
-      const detector = new BarcodeDetector({ formats: ['qr_code', 'code_128', 'code_39'] });
-      const scanLoop = async () => {
-        if (!stream) return;
-        try {
-          const codes = await detector.detect(v);
-          if (codes.length) {
-            $('empCode').value = codes[0].rawValue;
-            closeModal();
-            lookupEmployee();
-            return;
-          }
-        } catch (e) {}
-        requestAnimationFrame(scanLoop);
-      };
-      requestAnimationFrame(scanLoop);
-    } else {
-      toast('เบราว์เซอร์นี้ไม่รองรับการสแกน QR อัตโนมัติ กรุณาพิมพ์รหัสพนักงาน');
-    }
-  }).catch(() => toast('ไม่สามารถเปิดกล้องได้'));
+function showEmployeeCard(emp, rec) {
+  const box = $('employeeResult');
+  box.classList.remove('hidden');
+  $('empName').textContent = `${emp.name} (รหัส ${emp.code})`;
+  $('empMeta').textContent = `ตำแหน่ง: ${emp.position} | โหมดปัจจุบัน: ${rec.type}`;
+  $('empShift').textContent = `เวลาเข้างาน: ${emp.start} น. | เลิกงาน: ${emp.end} น.`;
+  const avatar = $('avatar');
+  if (rec.photo && rec.photo.startsWith('data:image')) {
+    avatar.innerHTML = `<img src="${rec.photo}" style="width:100%;height:100%;object-fit:cover">`;
+  }
 }
 
 function openManageWithPin() {
   modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
     <p class="hint">กรอกรหัส PIN เพื่อเข้าสู่เมนูตั้งค่าพนักงาน</p>
-    <label>รหัสผ่าน PIN (ค่าเริ่มต้น 1234)</label>
+    <label>รหัสผ่าน PIN</label>
     <input id="managePinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitManagePin()">
     <div class="modalfoot">
       <button onclick="closeModal()">ยกเลิก</button>
@@ -799,7 +783,7 @@ function openManageWithPin() {
 }
 
 async function submitManagePin() {
-  const pin = ($('managePinInput').value || '').trim();
+  const pin = $('managePinInput').value.trim();
   if (!pin) return toast('กรุณากรอกรหัส PIN');
   const btn = $('btnManageGo');
   btn.disabled = true;
@@ -808,204 +792,92 @@ async function submitManagePin() {
     const res = await api('admin', { pin });
     if (res && res.ok) {
       closeModal();
-      openManageModal();
+      openEmployeeSettingsModal();
     } else {
-      throw Error((res && res.message) || 'รหัสผู้ดูแลระบบไม่ถูกต้อง');
+      throw new Error(res.message || 'รหัส PIN ไม่ถูกต้อง');
     }
-  } catch (e) {
-    toast(e.message);
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '🔓 เข้าสู่ตั้งค่าพนักงาน';
-    }
+  } catch (err) {
+    toast(err.message || 'รหัส PIN ไม่ถูกต้อง');
+    btn.disabled = false;
+    btn.textContent = '🔓 เข้าสู่ตั้งค่าพนักงาน';
   }
 }
 
-async function openManageModal() {
-  modal(`<h2>การตั้งค่าเข้างานพนักงาน</h2>
-    <p class="hint">อ้างอิงจากชีต "ข้อมูลพนักงาน" (คอลัมน์ A=รหัส, B=ชื่อ, C=ตำแหน่ง, D=เข้า, E=ชั่วโมง, F=ออก)</p>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 10px;gap:8px;flex-wrap:wrap">
-      <button class="smBtn" onclick="renderManageTable(true)">↻ โหลดข้อมูลใหม่</button>
-      <button class="primary smBtn" onclick="openEmpForm()">+ เพิ่มพนักงานใหม่</button>
-    </div>
-    <div id="empFormWrap" class="hidden"></div>
-    <div class="tablewrap">
-      <table>
-        <thead>
-          <tr>
-            <th>รหัส (A)</th>
-            <th>ชื่อพนักงาน (B)</th>
-            <th>ตำแหน่ง (C)</th>
-            <th>เข้างาน (D)</th>
-            <th>ชม. (E)</th>
-            <th>เลิกงาน (F)</th>
-            <th>จัดการ</th>
-          </tr>
-        </thead>
-        <tbody id="manageEmpBody">
-          <tr><td colspan="7" class="empty">กำลังดึงข้อมูลจาก Google Sheets...</td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`, true);
-  await renderManageTable(true);
-}
-
-async function renderManageTable(forceReload = false) {
-  const tbody = $('manageEmpBody');
-  if (!tbody) return;
-  if (forceReload) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">กำลังดึงข้อมูลล่าสุด...</td></tr>`;
-    await getAllEmployees();
-  }
-  if (!cachedEmployees.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty">ไม่พบข้อมูลพนักงานในชีต "ข้อมูลพนักงาน"</td></tr>`;
-    return;
-  }
-  tbody.innerHTML = cachedEmployees.map(emp => `
-    <tr>
-      <td><b>${esc(emp.code)}</b></td>
-      <td>${esc(emp.name)}</td>
-      <td>${esc(emp.position || '-')}</td>
-      <td><span class="pill">${esc(emp.start)}</span></td>
-      <td>${esc(emp.hours || '9')} ชม.</td>
-      <td><span class="pill early">${esc(emp.end)}</span></td>
-      <td><button class="smBtn" onclick="openEmpForm('${esc(emp.code)}')">✎ แก้ไขกะ</button></td>
-    </tr>
-  `).join('');
-}
-
-function openEmpForm(editCode = '') {
-  const emp = editCode ? cachedEmployees.find(x => x.code === editCode) : null;
-  const startVal = emp ? emp.start : '09:00';
-  const hoursVal = emp ? String(parseInt(emp.hours) || 9) : '9';
-  const endVal = emp ? emp.end : calcEndTime(startVal, Number(hoursVal));
-
-  const wrap = $('empFormWrap');
-  wrap.classList.remove('hidden');
-  wrap.innerHTML = `
-    <div class="shiftBox">
-      <h3 style="margin:0 0 8px;font-size:15px">${emp ? 'แก้ไขข้อมูลและกะ: ' + esc(emp.name) : 'เพิ่มรายชื่อและกะพนักงานใหม่'}</h3>
-      <div class="formGrid">
-        <div>
-          <label>รหัสพนักงาน (คอลัมน์ A) *</label>
-          <input id="fCode" class="field" placeholder="เช่น 15" value="${emp ? esc(emp.code) : ''}" ${emp ? 'readonly style="opacity:.7"' : ''}>
-        </div>
-        <div>
-          <label>ชื่อ-นามสกุล (คอลัมน์ B) *</label>
-          <input id="fName" class="field" placeholder="เช่น นาย ห้า" value="${emp ? esc(emp.name) : ''}">
-        </div>
-      </div>
-      <div>
-        <label>ตำแหน่ง (คอลัมน์ C)</label>
-        <input id="fPos" class="field" placeholder="เช่น พนักงานบริการ" value="${emp && emp.position !== '-' ? esc(emp.position) : ''}">
-      </div>
-      <div class="formGrid" style="grid-template-columns:1fr 1fr 1fr;margin-top:4px">
-        <div>
-          <label>เวลาเข้างาน (D)</label>
-          <input id="fStart" class="field" placeholder="09:00" maxlength="5" value="${esc(startVal)}" oninput="updateAutoEnd()">
-        </div>
-        <div>
-          <label>+ ชั่วโมงทำงาน (E)</label>
-          <select id="fHours" class="field" onchange="updateAutoEnd()">
-            ${[4,5,6,7,8,9,10,11,12].map(h => `<option value="${h}" ${String(h) === hoursVal ? 'selected' : ''}>+ ${h} ชั่วโมง</option>`).join('')}
-          </select>
-        </div>
-        <div>
-          <label>เวลาเลิกงานอัตโนมัติ (F)</label>
-          <input id="fEnd" class="field" placeholder="18:00" maxlength="5" value="${esc(endVal)}">
-        </div>
-      </div>
-      <div class="shiftPreview" id="autoEndPreview">เวลาเลิกงานอัตโนมัติ: ${esc(endVal)} น. (+${esc(hoursVal)} ชม.)</div>
-      <div class="modalfoot" style="margin-top:14px">
-        <button onclick="$('empFormWrap').classList.add('hidden')">ยกเลิก</button>
-        <button id="btnSaveEmp" class="success" onclick="saveEmpShift()">💾 บันทึกข้อมูลพนักงาน</button>
-      </div>
-    </div>
-  `;
-}
-
-function calcEndTime(startStr, addHours) {
-  const parts = String(startStr || '09:00').split(':');
-  const h = parseInt(parts[0], 10);
-  const m = parseInt(parts[1], 10) || 0;
-  if (isNaN(h)) return '18:00';
-  const totalMins = ((h + addHours) % 24) * 60 + m;
-  const endH = String(Math.floor(totalMins / 60)).padStart(2, '0');
-  const endM = String(totalMins % 60).padStart(2, '0');
-  return `${endH}:${endM}`;
-}
-
-function updateAutoEnd() {
-  const s = $('fStart').value.trim();
-  const h = Number($('fHours').value || 9);
-  if (/^\d{1,2}:\d{2}$/.test(s)) {
-    const end = calcEndTime(s, h);
-    $('fEnd').value = end;
-    $('autoEndPreview').textContent = `เวลาเลิกงานอัตโนมัติ: ${end} น. (+${h} ชม.)`;
-  }
-}
-
-async function saveEmpShift() {
-  const code = $('fCode').value.trim();
-  const name = $('fName').value.trim();
-  const position = $('fPos').value.trim() || '-';
-  const startRaw = $('fStart').value.trim();
-  const hours = $('fHours').value;
-  const endRaw = $('fEnd').value.trim();
-
-  if (!code || !name) return toast('กรุณากรอกรหัสพนักงานและชื่อ-นามสกุล');
-  if (!/^\d{1,2}:\d{2}$/.test(startRaw) || !/^\d{1,2}:\d{2}$/.test(endRaw)) {
-    return toast('กรุณากรอกเวลาในรูปแบบ 24 ชั่วโมง เช่น 09:00 หรือ 18:00');
-  }
-
-  const start = startRaw.split(':').map(x => x.padStart(2, '0')).join(':');
-  const end = endRaw.split(':').map(x => x.padStart(2, '0')).join(':');
-
-  const btn = $('btnSaveEmp');
-  btn.disabled = true;
-  btn.textContent = 'กำลังบันทึก...';
-
+async function openEmployeeSettingsModal() {
+  modal(`<h2>กำลังโหลดข้อมูลพนักงาน...</h2>`, true);
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'saveEmployee', code, name, position, start, hours, end })
-    });
-    const result = await res.json();
-    if (result && result.ok) {
-      toast('บันทึกข้อมูลพนักงานลง Google Sheets สำเร็จ');
-      $('empFormWrap').classList.add('hidden');
-      await renderManageTable(true);
+    let emps = [];
+    try {
+      const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
+      emps = rows.map(normalizeEmployee).filter(x => x.code && x.code !== 'รหัสพนักงาน' && x.code !== 'รหัส');
+    } catch (e) {
+      const res = await api('employees');
+      if (res && res.ok) emps = res.employees;
+    }
+    cachedEmployees = emps;
+
+    let rowsHtml = '';
+    if (emps.length === 0) {
+      rowsHtml = '<tr><td colspan="6" class="empty">ยังไม่มีข้อมูลพนักงานในระบบ</td></tr>';
     } else {
-      throw Error((result && result.message) || 'ไม่สามารถบันทึกได้');
+      emps.forEach(emp => {
+        rowsHtml += `<tr>
+          <td><strong>${esc(emp.code)}</strong></td>
+          <td>${esc(emp.name)}</td>
+          <td>${esc(emp.position)}</td>
+          <td><span class="pill">${esc(emp.start)}</span></td>
+          <td>${esc(emp.hours)} ชม.</td>
+          <td><span class="pill early">${esc(emp.end)}</span></td>
+        </tr>`;
+      });
     }
-  } catch (e) {
-    toast('บันทึกข้อมูลพนักงานเรียบร้อย');
-    $('empFormWrap').classList.add('hidden');
-    setTimeout(() => renderManageTable(true), 1500);
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '💾 บันทึกข้อมูลพนักงาน';
-    }
+
+    modal(`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <h2>การตั้งค่าเข้างานพนักงาน</h2>
+          <p class="hint" style="margin:0">อ้างอิงจากชีต "ข้อมูลพนักงาน" (คอลัมน์ A=รหัส, B=ชื่อ, C=ตำแหน่ง, D=เข้า, E=ชั่วโมง, F=ออก)</p>
+        </div>
+        <button class="primary smBtn" onclick="loadToday(); closeModal();">🔄 โหลดข้อมูลใหม่</button>
+      </div>
+      <div class="tablewrap" style="max-height:60vh;overflow-y:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>รหัส (A)</th>
+              <th>ชื่อพนักงาน (B)</th>
+              <th>ตำแหน่ง (C)</th>
+              <th>เข้างาน (D)</th>
+              <th>ชม. (E)</th>
+              <th>เลิกงาน (F)</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      </div>
+      <div class="modalfoot">
+        <button onclick="closeModal()">ปิด</button>
+      </div>
+    `, true);
+  } catch (err) {
+    modal(`<h2>เกิดข้อผิดพลาด</h2><p class="hint">${esc(err.message)}</p><div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`);
   }
 }
 
 function adminLogin() {
   modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
     <p class="hint">กรอกรหัส PIN เพื่อเปิดชีตหลังบ้าน Google Sheets</p>
-    <label>รหัสผ่าน PIN (ค่าเริ่มต้น 1234)</label>
+    <label>รหัสผ่าน PIN</label>
     <input id="adminPinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitAdminLogin()">
     <div class="modalfoot">
       <button onclick="closeModal()">ยกเลิก</button>
       <button id="btnAdminGo" class="warning" onclick="submitAdminLogin()">🔓 เปิดชีตหลังบ้าน</button>
     </div>`);
-  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput').focus(); }, 80);
+  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput'.focus()); }, 80);
 }
 
 async function submitAdminLogin() {
-  const pin = ($('adminPinInput').value || '').trim();
+  const pin = $('adminPinInput').value.trim();
   if (!pin) return toast('กรุณากรอกรหัส PIN');
   const btn = $('btnAdminGo');
   btn.disabled = true;
@@ -1013,66 +885,47 @@ async function submitAdminLogin() {
   try {
     const res = await api('admin', { pin });
     if (res && res.ok) {
-      const url = res.sheetUrl || `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`;
       closeModal();
-      const win = window.open(url, '_blank');
-      if (!win) toast('ยืนยันรหัสสำเร็จ! กรุณาอนุญาต Pop-up เพื่อเปิดหน้าต่างชีต');
+      window.open(res.sheetUrl || `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, '_blank');
+      toast('เปิดชีตหลังบ้านสำเร็จ');
     } else {
-      throw Error((res && res.message) || 'รหัสผู้ดูแลระบบไม่ถูกต้อง');
+      throw new Error(res.message || 'รหัส PIN ไม่ถูกต้อง');
     }
-  } catch (e) {
-    toast(e.message);
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = '🔓 เปิดชีตหลังบ้าน';
-    }
+  } catch (err) {
+    toast(err.message || 'รหัส PIN ไม่ถูกต้อง');
+    btn.disabled = false;
+    btn.textContent = '🔓 เปิดชีตหลังบ้าน';
   }
 }
 
 function changePin() {
-  modal(`<h2>เปลี่ยนรหัสผ่านผู้ดูแลระบบ</h2>
+  modal(`<h2>เปลี่ยนรหัสผ่าน PIN ผู้ดูแลระบบ</h2>
     <label>รหัสผ่านปัจจุบัน</label>
-    <input id="oldPin" type="password" class="field" placeholder="รหัสผ่านเดิม...">
+    <input id="oldPin" type="password" class="field" placeholder="รหัสผ่านปัจจุบัน...">
     <label>รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</label>
     <input id="newPin" type="password" class="field" placeholder="รหัสผ่านใหม่...">
     <div class="modalfoot">
       <button onclick="closeModal()">ยกเลิก</button>
-      <button id="btnChangePin" class="primary" onclick="submitChangePin()">บันทึกรหัสใหม่</button>
+      <button class="primary" onclick="submitChangePin()">บันทึกรหัสใหม่</button>
     </div>`);
 }
 
 async function submitChangePin() {
-  const oldPin = ($('oldPin').value || '').trim();
-  const newPin = ($('newPin').value || '').trim();
-  if (!oldPin || newPin.length < 4) return toast('กรุณากรอกรหัสเดิมและรหัสใหม่อย่างน้อย 4 ตัวอักษร');
-  const btn = $('btnChangePin');
-  btn.disabled = true;
+  const oldPin = $('oldPin').value.trim();
+  const newPin = $('newPin').value.trim();
+  if (!oldPin || !newPin) return toast('กรุณากรอกข้อมูลให้ครบถ้วน');
   try {
     const res = await api('changePin', { oldPin, newPin });
     if (res && res.ok) {
       closeModal();
-      toast('เปลี่ยนรหัสผ่านผู้ดูแลระบบเรียบร้อย');
+      toast('เปลี่ยนรหัสผ่านเรียบร้อย');
     } else {
-      throw Error((res && res.message) || 'รหัสผ่านปัจจุบันไม่ถูกต้อง');
+      throw new Error(res.message || 'ไม่สามารถเปลี่ยนรหัสได้');
     }
-  } catch (e) {
-    toast(e.message);
-    if (btn) btn.disabled = false;
+  } catch (err) {
+    toast(err.message);
   }
 }
-
-$('empCode').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    lookupEmployee();
-  }
-});
-
-window.addEventListener('DOMContentLoaded', () => {
-  loadToday();
-  getAllEmployees();
-  $('empCode').focus();
-});
 </script>
 </body>
 </html>
