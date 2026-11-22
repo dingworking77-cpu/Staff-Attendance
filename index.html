@@ -173,7 +173,7 @@ body.light .shiftPreview{color:#057a55}
   </div>
   <div class="scanrow">
    <button onclick="startScan()">▦ สแกน QR</button>
-   <input id="empCode" class="field" placeholder="สแกนบัตร หรือพิมพ์รหัสพนักงานแล้วกด Enter..." autocomplete="off">
+   <input id="empCode" class="field" placeholder="สแกนบัตร หรือพิมพ์รหัสพนักงานแล้วกด Enter..." autocomplete="off" onkeydown="if(event.key==='Enter')lookupEmployee()">
    <button class="danger" style="min-width:86px;font-size:15px" onclick="lookupEmployee()">OK</button>
   </div>
  </section>
@@ -191,7 +191,7 @@ body.light .shiftPreview{color:#057a55}
   <div id="employeeResult" class="employee hidden">
    <div id="avatar" class="avatar">♙</div>
    <div>
-    <span class="pill" id="empStatus">ตรวจสอบแล้ว</span>
+    <span class="pill" id="empStatus">บันทึกแล้ว</span>
     <h3 id="empName">-</h3>
     <p id="empMeta">-</p>
     <p id="empShift">-</p>
@@ -273,6 +273,25 @@ function setMode(m) {
   mode = m;
   $('inBtn').classList.toggle('selected', m === 'เข้า');
   $('outBtn').classList.toggle('selected', m === 'ออก');
+}
+
+function isEarlyLeave(nowStr, startStr, endStr) {
+  const toMins = s => {
+    const p = String(s || '00:00').split(':').map(Number);
+    return (p[0] || 0) * 60 + (p[1] || 0);
+  };
+  let nowM = toMins(nowStr);
+  const startM = toMins(startStr);
+  let endM = toMins(endStr);
+
+  // รองรับกะทำงานที่เลิกเที่ยงคืน (00:00) หรือข้ามเที่ยงคืน (เช่น เริ่ม 17:00, เลิก 03:00)
+  if (endM < startM) {
+    endM += 1440;
+    if (nowM < startM && nowM < 720) {
+      nowM += 1440;
+    }
+  }
+  return nowM < endM;
 }
 
 function tick() {
@@ -469,7 +488,6 @@ async function loadToday() {
     if (btn) btn.disabled = false;
   }
 
-  // ป้องกันรายการซ้ำโดยใช้คีย์รหัสพนักงาน + ประเภทการลงเวลา + เวลาบันทึกที่ตรงกันเป๊ะ
   const mergedMap = new Map();
   for (let r of serverRecs) {
     const uniqueKey = `${r.code}|${r.type}|${r.time}`;
@@ -517,25 +535,18 @@ function renderRecords() {
       <td>${esc(r.name)}</td>
       <td>${esc(r.type)}</td>
       <td><span class="${pClass}">${sText}</span></td>
-      <td>${esc(r.note || '-')}</td>
+      <td>${esc(r.note)}</td>
       <td>${esc(r.time)}</td>
     </tr>`;
   }
   tbody.innerHTML = html;
 }
 
-window.addEventListener('DOMContentLoaded', () => {
-  loadToday();
-  const empInput = $('empCode');
-  if (empInput) {
-    empInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        lookupEmployee();
-      }
-    });
-  }
-});
+function modeCompare(a, b) {
+  const x = String(a || '00:00').split(':').map(Number);
+  const y = String(b || '00:00').split(':').map(Number);
+  return ((x[0] || 0) * 60 + (x[1] || 0)) - ((y[0] || 0) * 60 + (y[1] || 0));
+}
 
 async function lookupEmployee() {
   const code = $('empCode').value.trim();
@@ -565,7 +576,6 @@ async function lookupEmployee() {
   const hasCheckedIn = todayRecords.some(r => r.code === emp.code && r.type.includes('เข้า') && isTodayRecord(r));
   const hasCheckedOut = todayRecords.some(r => r.code === emp.code && (r.type.includes('ออก') || r.type.includes('เลิก')) && isTodayRecord(r));
 
-  // 1. ตรวจสอบกรณีลงชื่อซ้ำในโหมดเดียวกันวันนี้
   if ((isInMode && hasCheckedIn) || (!isInMode && hasCheckedOut)) {
     const modeName = isInMode ? 'เข้างาน' : 'เลิกงาน';
     const oppositeName = isInMode ? 'เลิกงาน' : 'เข้างาน';
@@ -577,7 +587,7 @@ async function lookupEmployee() {
       </div>
       <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
         <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
-        <div style="margin-top:4px"><strong>โหมดที่เลือกอยู่:</strong> ${isInMode ? '🟢 เข้างาน' : '🔴 เลิกงาน'} (สถานะในชีตหลังบ้าน: ซ้ำ)</div>
+        <div style="margin-top:4px"><strong>โหมดที่เลือกอยู่:</strong> ${isInMode ? '🟢 เข้างาน' : '🔴 เลิกงาน'}</div>
       </div>
       <div class="modalfoot" style="justify-content:center;gap:12px">
         <button onclick="closeModal()">ยกเลิก / เปลี่ยนโหมด</button>
@@ -589,9 +599,8 @@ async function lookupEmployee() {
 
   const currentTime = new Date();
   const timeStr = `${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`;
-  const isEarlyOut = (!isInMode && timeStr < emp.end);
+  const isEarlyOut = (!isInMode && isEarlyLeave(timeStr, emp.start, emp.end));
 
-  // 2. ตรวจสอบกรณีเลิกงานก่อนเวลา
   if (isEarlyOut) {
     modal(`
       <div style="text-align:center;margin-bottom:12px">
@@ -611,7 +620,6 @@ async function lookupEmployee() {
     return;
   }
 
-  // 3. ตรวจสอบกรณีสแกนออก แต่ยังไม่ได้สแกนเข้าในวันนี้
   if (!isInMode && !hasCheckedIn) {
     modal(`
       <div style="text-align:center;margin-bottom:12px">
@@ -648,9 +656,9 @@ function openCameraModal(emp, isDuplicate = false, isEarlyOut = false, missingCh
   let isLate = false;
   let isEarly = isEarlyOut;
   if (mode === 'เข้า') {
-    isLate = (timeStr > emp.start);
+    isLate = (modeCompare(timeStr, emp.start) > 0);
   } else {
-    isEarly = isEarly || (timeStr < emp.end);
+    isEarly = isEarly || isEarlyLeave(timeStr, emp.start, emp.end);
   }
   const isAbnormal = isLate || isEarly || isDuplicate || missingCheckIn;
 
@@ -663,7 +671,7 @@ function openCameraModal(emp, isDuplicate = false, isEarlyOut = false, missingCh
     <input id="modalNote" class="field" placeholder="${isAbnormal ? 'กรุณาระบุเหตุผล/หมายเหตุ (บังคับกรอก)...' : 'ระบุหมายเหตุ (ถ้ามี)...'}">
     <div class="modalfoot">
       <button onclick="closeModal()">ยกเลิก</button>
-      <button class="primary" onclick="captureAndSubmit(${isDuplicate}, ${missingCheckIn}, ${isAbnormal})">📸 ถ่ายภาพและบันทึกเวลา</button>
+      <button class="primary" onclick="captureAndSubmit(${isDuplicate}, ${isEarly}, ${missingCheckIn}, ${isAbnormal})">📸 ถ่ายภาพและบันทึกเวลา</button>
     </div>
   `);
 
@@ -678,7 +686,7 @@ function openCameraModal(emp, isDuplicate = false, isEarlyOut = false, missingCh
     });
 }
 
-function captureAndSubmit(isDuplicate = false, missingCheckIn = false, requireNote = false) {
+function captureAndSubmit(isDuplicate = false, isEarlyOut = false, missingCheckIn = false, requireNote = false) {
   const noteInput = $('modalNote');
   const note = noteInput ? noteInput.value.trim() : '';
   if (requireNote && !note) {
@@ -698,10 +706,10 @@ function captureAndSubmit(isDuplicate = false, missingCheckIn = false, requireNo
   photoData = canvas.toDataURL('image/jpeg', 0.85);
 
   closeModal();
-  submitAttendance(currentEmployee, photoData, note, isDuplicate, missingCheckIn);
+  submitAttendance(currentEmployee, photoData, note, isDuplicate, isEarlyOut, missingCheckIn);
 }
 
-async function submitAttendance(emp, photo, note, isDuplicate = false, missingCheckIn = false) {
+async function submitAttendance(emp, photo, note, isDuplicate = false, isEarlyOut = false, missingCheckIn = false) {
   toast('กำลังบันทึกข้อมูล...');
   const payload = {
     action: 'save',
@@ -710,6 +718,7 @@ async function submitAttendance(emp, photo, note, isDuplicate = false, missingCh
     note: note || '-',
     photo: photo,
     isDuplicate: isDuplicate ? '1' : '0',
+    isEarlyOut: isEarlyOut ? '1' : '0',
     missingCheckIn: missingCheckIn ? '1' : '0'
   };
 
@@ -731,10 +740,11 @@ async function submitAttendance(emp, photo, note, isDuplicate = false, missingCh
       let finalStatus = 'ปกติ';
       if (missingCheckIn) finalStatus = 'ไม่ได้สแกนหน้าเข้างาน';
       else if (isDuplicate) finalStatus = 'ซ้ำ';
+      else if (isEarlyOut) finalStatus = 'เลิกงานก่อนเวลา';
       else {
         const timeHHmm = timeStr.substring(0, 5);
-        if (mode === 'เข้า' && timeHHmm > emp.start) finalStatus = 'สาย';
-        if (mode === 'ออก' && timeHHmm < emp.end) finalStatus = 'เลิกงานก่อนเวลา';
+        if (mode === 'เข้า' && modeCompare(timeHHmm, emp.start) > 0) finalStatus = 'สาย';
+        if (mode === 'ออก' && isEarlyLeave(timeHHmm, emp.start, emp.end)) finalStatus = 'เลิกงานก่อนเวลา';
       }
 
       const newRec = {
@@ -770,39 +780,6 @@ function showEmployeeCard(emp, rec) {
   const avatar = $('avatar');
   if (rec.photo && rec.photo.startsWith('data:image')) {
     avatar.innerHTML = `<img src="${rec.photo}" style="width:100%;height:100%;object-fit:cover">`;
-  }
-}
-
-function openManageWithPin() {
-  modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
-    <p class="hint">กรอกรหัส PIN เพื่อเข้าสู่เมนูตั้งค่าพนักงาน</p>
-    <label>รหัสผ่าน PIN</label>
-    <input id="managePinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitManagePin()">
-    <div class="modalfoot">
-      <button onclick="closeModal()">ยกเลิก</button>
-      <button id="btnManageGo" class="primary" onclick="submitManagePin()">🔓 เข้าสู่ตั้งค่าพนักงาน</button>
-    </div>`);
-  setTimeout(() => { if ($('managePinInput')) $('managePinInput').focus(); }, 80);
-}
-
-async function submitManagePin() {
-  const pin = $('managePinInput').value.trim();
-  if (!pin) return toast('กรุณากรอกรหัส PIN');
-  const btn = $('btnManageGo');
-  btn.disabled = true;
-  btn.textContent = 'กำลังตรวจสอบ...';
-  try {
-    const res = await api('admin', { pin });
-    if (res && res.ok) {
-      closeModal();
-      openEmployeeSettingsModal();
-    } else {
-      throw new Error(res.message || 'รหัส PIN ไม่ถูกต้อง');
-    }
-  } catch (err) {
-    toast(err.message || 'รหัส PIN ไม่ถูกต้อง');
-    btn.disabled = false;
-    btn.textContent = '🔓 เข้าสู่ตั้งค่าพนักงาน';
   }
 }
 
@@ -876,7 +853,7 @@ function adminLogin() {
       <button onclick="closeModal()">ยกเลิก</button>
       <button id="btnAdminGo" class="warning" onclick="submitAdminLogin()">🔓 เปิดชีตหลังบ้าน</button>
     </div>`);
-  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput'.focus()); }, 80);
+  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput').focus(); }, 80);
 }
 
 async function submitAdminLogin() {
@@ -951,6 +928,8 @@ function viewRecordPhoto(code, name, type, time, src) {
     </div>
   `);
 }
+
+loadToday();
 </script>
 </body>
 </html>
