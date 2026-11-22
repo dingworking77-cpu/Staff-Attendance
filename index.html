@@ -96,7 +96,8 @@ table{width:100%;border-collapse:collapse;text-align:left;min-width:620px}
 th,td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13.5px}
 th{background:var(--panel2);color:var(--muted);font-weight:750;font-size:12px}
 tr:last-child td{border-bottom:0}
-td img{width:40px;height:40px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--line)}
+td img{width:40px;height:40px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--line);cursor:pointer;transition:transform .15s,box-shadow .15s}
+td img:hover{transform:scale(1.12);box-shadow:0 4px 12px #0006;border-color:var(--blue)}
 .empty{text-align:center;color:var(--muted);padding:28px!important}
 
 /* Modal & Camera */
@@ -138,13 +139,14 @@ body.light .shiftPreview{color:#057a55}
  </div>
  <button class="navbtn themeBtn" style="margin-top:16px" onclick="toggleTheme()"><span id="themeIcon">☀️</span> <span>มืด / สว่าง</span></button>
  <div class="navdivider"></div>
+ <div class="navlabel">ข้อมูลทั่วไป</div>
+ <button class="navbtn active" onclick="openEmployeeSettingsModal()">🕒 <span>กะพนักงาน</span></button>
  <div class="navlabel">ผู้ดูแลระบบ</div>
- <button class="navbtn active" onclick="openManageWithPin()">♙ <span>ตั้งค่าพนักงาน</span></button>
  <div class="adminRow">
   <button class="navbtn warning" onclick="adminLogin()">🔒 <span>เปิดชีตหลังบ้าน</span></button>
   <button class="miniBtn" onclick="changePin()" title="เปลี่ยนรหัสผ่าน">🗝 <span>รหัส</span></button>
  </div>
- <div class="footnote">การเปิดชีตและตั้งค่าต้องยืนยันรหัสผู้ดูแลระบบ</div>
+ <div class="footnote">การเปิดชีตหลังบ้านต้องยืนยันรหัสผู้ดูแลระบบ</div>
 </aside>
 
 <main class="main">
@@ -497,7 +499,8 @@ function renderRecords() {
 
   let html = '';
   const sorted = [...list].reverse();
-  for (let r of sorted) {
+  for (let i = 0; i < sorted.length; i++) {
+    const r = sorted[i];
     let pClass = 'pill';
     let sText = esc(r.status || 'ปกติ');
     if (sText.includes('สาย')) pClass += ' late';
@@ -505,7 +508,7 @@ function renderRecords() {
 
     let photoHtml = '<div style="width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)">♙</div>';
     if (r.photo && r.photo.startsWith('data:image')) {
-      photoHtml = `<img src="${esc(r.photo)}" alt="photo" onerror="this.outerHTML='<div style=\\\'width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)\\\'>♙</div>'">`;
+      photoHtml = `<img src="${esc(r.photo)}" alt="photo" title="คลิกเพื่อดูรูปขนาดใหญ่" onclick="viewRecordPhoto('${esc(r.code)}', '${esc(r.name)}', '${esc(r.type)}', '${esc(r.time)}', this.src)" onerror="this.outerHTML='<div style=\\\'width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)\\\'>♙</div>'">`;
     }
 
     html += `<tr>
@@ -835,10 +838,10 @@ async function openEmployeeSettingsModal() {
     modal(`
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
         <div>
-          <h2>การตั้งค่าเข้างานพนักงาน</h2>
+          <h2>ตารางกะเข้า-ออกงานพนักงาน</h2>
           <p class="hint" style="margin:0">อ้างอิงจากชีต "ข้อมูลพนักงาน" (คอลัมน์ A=รหัส, B=ชื่อ, C=ตำแหน่ง, D=เข้า, E=ชั่วโมง, F=ออก)</p>
         </div>
-        <button class="primary smBtn" onclick="loadToday(); closeModal();">🔄 โหลดข้อมูลใหม่</button>
+        <button class="primary smBtn" onclick="openEmployeeSettingsModal()">🔄 รีเฟรช</button>
       </div>
       <div class="tablewrap" style="max-height:60vh;overflow-y:auto">
         <table>
@@ -925,6 +928,28 @@ async function submitChangePin() {
   } catch (err) {
     toast(err.message);
   }
+}
+
+function viewRecordPhoto(code, name, type, time, src) {
+  if (!src) return;
+  const safeFileName = `attendance_${code}_${time.replace(/[^0-9]/g, '')}.jpg`;
+  modal(`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div>
+        <h2 style="margin:0;font-size:17px">ภาพถ่ายยืนยันตัวตน</h2>
+        <p class="hint" style="margin:2px 0 0">${esc(name)} (รหัส ${esc(code)}) • ${esc(type)} • ${esc(time)}</p>
+      </div>
+    </div>
+    <div style="background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--line);display:grid;place-items:center;margin:12px 0">
+      <img src="${esc(src)}" alt="Full Photo" style="width:100%;max-height:62vh;object-fit:contain;display:block">
+    </div>
+    <div class="modalfoot">
+      <a href="${esc(src)}" download="${esc(safeFileName)}" style="text-decoration:none">
+        <button type="button" class="primary">⬇️ ดาวน์โหลดรูปภาพ (.jpg)</button>
+      </a>
+      <button type="button" onclick="closeModal()">ปิด</button>
+    </div>
+  `);
 }
 </script>
 </body>
