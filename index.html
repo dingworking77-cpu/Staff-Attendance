@@ -1,937 +1,563 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ระบบลงเวลาพนักงาน</title>
-<style>
-:root{--bg:#070b19;--panel:#111a2d;--panel2:#172238;--line:#26344e;--text:#edf3ff;--muted:#9aabc5;--blue:#3978f6;--green:#079b70;--red:#e34b5b;--amber:#d69a2d;--shadow:0 18px 50px #0005}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;transition:background .2s,color .2s}
-body.light{--bg:#f2f5fb;--panel:#ffffff;--panel2:#f5f7fc;--line:#dce3ef;--text:#1c2940;--muted:#64748b;--shadow:0 12px 35px #25385818}
-button,input,select,textarea{font:inherit}
-button{cursor:pointer;border:1px solid var(--line);border-radius:11px;padding:10px 14px;background:var(--panel2);color:var(--text);font-weight:650;transition:.18s}
-button:hover{filter:brightness(1.08)}
-button:disabled{opacity:.45;cursor:not-allowed}
-.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-.success{background:var(--green);border-color:var(--green);color:#fff}
-.danger{background:var(--red);border-color:var(--red);color:#fff}
-.warning{background:#493719;border-color:#7d5a21;color:#ffdb91}
-body.light .warning{background:#fff8eb;border-color:#f0cf8e;color:#9a6300}
-.muted{color:var(--muted)}
-.hidden{display:none!important}
-
-/* Layout & Sidebar */
-.app{display:flex;min-height:100vh}
-.sidebar{width:268px;background:var(--panel);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;transition:.22s;flex-shrink:0}
-.brand{display:flex;align-items:center;gap:12px;padding:0 4px 20px;border-bottom:1px solid var(--line);font-weight:800}
-.logo{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#3d85ff,#5445d9);display:grid;place-items:center;font-size:19px;color:#fff;flex-shrink:0}
-.brand small{display:block;color:var(--muted);font-weight:500;font-size:11px}
-.navlabel{font-size:11px;color:var(--muted);font-weight:800;margin:14px 4px 8px;text-transform:uppercase;letter-spacing:.4px}
-.navdivider{height:1px;background:var(--line);margin:18px 2px 6px}
-.navbtn{width:100%;text-align:left;margin:4px 0;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;display:flex;align-items:center;gap:9px}
-.navbtn:hover{border-color:#3b527a}
-.navbtn.active{background:#18325b;border-color:#2b4b7d;color:#8db6ff}
-body.light .navbtn.active{background:#e7f0ff;border-color:#b4d0ff;color:#1d5ed6}
-.adminRow{display:flex;gap:8px;margin-top:4px;align-items:stretch}
-.adminRow .navbtn{margin:0;flex:1}
-.miniBtn{padding:0 12px;border-radius:12px;display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
-.footnote{font-size:11px;color:var(--muted);margin-top:10px;padding:0 4px;line-height:1.4}
-
-/* ปุ่ม มืด / สว่าง สลับสีตามโหมด (โหมดมืด=ปุ่มขาว, โหมดสว่าง=ปุ่มดำ) */
-.themeBtn{background:#ffffff;color:#0f172a;border-color:#e2e8f0;font-weight:750}
-body.light .themeBtn{background:#0f172a;color:#ffffff;border-color:#0f172a}
-
-/* ยุบแถบด้านข้าง ให้เหลือเฉพาะปุ่ม ย่อ-ขยาย */
-.sidebar.collapsed{width:58px;padding:18px 8px;align-items:center}
-.sidebar.collapsed .brand{border-bottom:0;padding:0;justify-content:center;width:100%}
-.sidebar.collapsed .brand .logo,
-.sidebar.collapsed .brandText,
-.sidebar.collapsed .navlabel,
-.sidebar.collapsed .navdivider,
-.sidebar.collapsed .navbtn,
-.sidebar.collapsed .adminRow,
-.sidebar.collapsed .footnote{display:none!important}
-
-/* Main Content & Top Header */
-.main{flex:1;min-width:0;padding:28px clamp(16px,4vw,52px);max-width:1450px;margin:auto;width:100%}
-.topline{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
-.topline h1{font-size:24px;margin:0;font-weight:800}
-.clockbox{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);padding:10px 20px;border-radius:14px;box-shadow:var(--shadow)}
-.clock{font-size:24px;font-weight:850;color:#ff4d5e;font-variant-numeric:tabular-nums;line-height:1.1}
-
-/* Cards & Scan Section */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px 24px;margin-bottom:20px;box-shadow:var(--shadow)}
-.scanHead{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}
-.scanHeadLeft h2{margin:0;font-size:17px}
-.scanHeadLeft p{margin:3px 0 0;color:var(--muted);font-size:12.5px}
-.seg{display:inline-flex;background:var(--bg);padding:4px;border-radius:13px;border:1px solid var(--line);gap:4px}
-.seg button{border:0;background:transparent;color:var(--muted);padding:8px 16px;border-radius:10px}
-.seg button.selected{background:var(--green);color:#fff;box-shadow:0 4px 14px #079b7044}
-.seg button.leave.selected{background:var(--red);color:#fff;box-shadow:0 4px 14px #e34b5b44}
-.scanrow{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
-.field{flex:1;min-width:200px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px 16px;font-size:15px;outline:none;transition:.15s}
-.field:focus{border-color:var(--blue)}
-
-/* Card Head & Employee Result */
-.cardHead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.cardHead h2{margin:0;font-size:17px}
-.actions{display:flex;gap:8px;align-items:center}
-.smBtn{padding:8px 12px;font-size:12.5px;border-radius:10px}
-.employee{display:flex;flex-direction:column;align-items:center;text-align:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:16px}
-.avatar{width:72px;height:72px;border-radius:16px;background:#233149;display:grid;place-items:center;font-size:30px;flex-shrink:0;overflow:hidden;border:1px solid var(--line)}
-.employee h3{margin:4px 0 2px;font-size:18px}
-.employee p{margin:2px 0;color:var(--muted);font-size:13.5px}
-
-/* Pills & Table */
-.pill{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11.5px;font-weight:750;background:#079b7024;color:#2ee5ab;border:1px solid #079b7055}
-body.light .pill{color:#057a55;background:#def7ec}
-.pill.late{background:#e34b5b24;color:#ff8591;border-color:#e34b5b55}
-body.light .pill.late{color:#c81e1e;background:#fde8e8}
-.pill.early{background:#d69a2d24;color:#ffd27c;border-color:#d69a2d55}
-body.light .pill.early{color:#9a6300;background:#fef3c7}
-
-.tablewrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:1px solid var(--line)}
-table{width:100%;border-collapse:collapse;text-align:left;min-width:620px}
-th,td{padding:11px 14px;border-bottom:1px solid var(--line);font-size:13.5px}
-th{background:var(--panel2);color:var(--muted);font-weight:750;font-size:12px}
-tr:last-child td{border-bottom:0}
-td img{width:40px;height:40px;object-fit:cover;border-radius:8px;display:block;border:1px solid var(--line);cursor:pointer;transition:transform .15s,box-shadow .15s}
-td img:hover{transform:scale(1.12);box-shadow:0 4px 12px #0006;border-color:var(--blue)}
-.empty{text-align:center;color:var(--muted);padding:28px!important}
-
-/* Modal & Camera */
-.modal{position:fixed;inset:0;background:#0009;backdrop-filter:blur(4px);display:none;place-items:center;padding:16px;z-index:50}
-.modal.show{display:grid}
-.modalbox{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:24px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;box-shadow:0 24px 60px #0008;transition:max-width .2s}
-.modalbox.wide{max-width:960px}
-.modalbox h2{margin:0 0 6px;font-size:18px}
-.hint{color:var(--muted);font-size:13px;margin:0 0 12px}
-.modalbox label{display:block;font-size:12.5px;font-weight:700;margin:12px 0 6px;color:var(--muted)}
-.modalbox .field{width:100%}
-.modalfoot{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
-.camera{width:100%;border-radius:14px;background:#000;aspect-ratio:4/3;object-fit:cover;margin-top:8px;border:1px solid var(--line)}
-.shiftBox{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
-.formGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.shiftPreview{margin-top:10px;font-size:12.5px;color:#2ee5ab;font-weight:650}
-body.light .shiftPreview{color:#057a55}
-
-/* Toast & Animation */
-.toast{position:fixed;bottom:22px;right:22px;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:13px 18px;border-radius:13px;box-shadow:0 14px 36px #0007;z-index:80;font-weight:650;max-width:360px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.spin{animation:spin .8s linear infinite}
-
-@media (max-width:768px){
-  .app{flex-direction:column}
-  .sidebar{width:100%;border-right:0;border-bottom:1px solid var(--line);padding:14px}
-  .sidebar.collapsed{width:100%;padding:10px}
-  .formGrid{grid-template-columns:1fr}
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบสแกนเลขพัสดุ iData K3S</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+  </style>
 </head>
-<body>
-<div class="app">
-<aside class="sidebar" id="sidebar">
- <div class="brand">
-  <div class="logo">▣</div>
-  <div class="brandText">ระบบลงเวลาทำงาน<small>Smart Attendance & Photo</small></div>
-  <button id="sideToggleBtn" style="margin-left:auto;padding:6px 10px" onclick="toggleSide()" title="ย่อ/ขยายแถบเมนู">‹</button>
- </div>
- <button class="navbtn themeBtn" style="margin-top:16px" onclick="toggleTheme()"><span id="themeIcon">☀️</span> <span>มืด / สว่าง</span></button>
- <div class="navdivider"></div>
- <div class="navlabel">ข้อมูลทั่วไป</div>
- <button class="navbtn active" onclick="openEmployeeSettingsModal()">🕒 <span>กะพนักงาน</span></button>
- <div class="navlabel">ผู้ดูแลระบบ</div>
- <div class="adminRow">
-  <button class="navbtn warning" onclick="adminLogin()">🔒 <span>เปิดชีตหลังบ้าน</span></button>
-  <button class="miniBtn" onclick="changePin()" title="เปลี่ยนรหัสผ่าน">🗝 <span>รหัส</span></button>
- </div>
- <div class="footnote">การเปิดชีตหลังบ้านต้องยืนยันรหัสผู้ดูแลระบบ</div>
-</aside>
+<body class="bg-slate-50 min-h-screen flex flex-col select-none">
 
-<main class="main">
- <div class="topline">
-  <div><h1>ลงเวลาพนักงาน</h1></div>
-  <div class="clockbox">
-   <div class="clock" id="clock">--:--:--</div>
-   <div class="muted" id="dateText" style="font-size:13px;font-weight:600"></div>
-  </div>
- </div>
-
- <section class="card scanCard">
-  <div class="scanHead">
-   <div class="scanHeadLeft">
-    <h2>พิมพ์หรือสแกนรหัสพนักงาน</h2>
-    <p>รองรับเครื่องสแกน USB / Bluetooth หรือกรอกรหัสแล้วกด Enter</p>
-   </div>
-   <div class="scanHeadCenter">
-    <div class="seg">
-     <button id="inBtn" class="selected" onclick="setMode('เข้า')">🟢 เข้างาน</button>
-     <button id="outBtn" class="leave" onclick="setMode('ออก')">🔴 เลิกงาน</button>
-    </div>
-   </div>
-  </div>
-  <div class="scanrow">
-   <button onclick="startScan()">▦ สแกน QR</button>
-   <input id="empCode" class="field" placeholder="สแกนบัตร หรือพิมพ์รหัสพนักงานแล้วกด Enter..." autocomplete="off" onkeydown="if(event.key==='Enter')lookupEmployee()">
-   <button class="danger" style="min-width:86px;font-size:15px" onclick="lookupEmployee()">OK</button>
-  </div>
- </section>
-
- <section class="card">
-  <div class="cardHead">
-   <div><h2>ข้อมูลพนักงาน</h2></div>
-   <div class="actions">
-    <button id="filterDayBtn" class="smBtn" onclick="toggleDayFilter()">📅 แสดง: ล่าสุดทั้งหมด</button>
-    <button id="refreshBtn" onclick="loadToday()" title="รีเฟรชข้อมูล" style="padding:8px 11px;display:inline-flex;align-items:center;justify-content:center">
-     <svg id="refreshIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg>
-    </button>
-   </div>
-  </div>
-  <div id="employeeResult" class="employee hidden">
-   <div id="avatar" class="avatar">♙</div>
-   <div>
-    <span class="pill" id="empStatus">บันทึกแล้ว</span>
-    <h3 id="empName">-</h3>
-    <p id="empMeta">-</p>
-    <p id="empShift">-</p>
-   </div>
-  </div>
-  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
-   <h3 style="margin:0 0 6px;font-size:15px">ประวัติการลงเวลาล่าสุด</h3>
-   <div class="tablewrap">
-    <table>
-     <thead>
-      <tr>
-       <th>รูปถ่าย</th>
-       <th>รหัสพนักงาน</th>
-       <th>ชื่อพนักงาน</th>
-       <th>ประเภท</th>
-       <th>สถานะ</th>
-       <th>หมายเหตุ</th>
-       <th>เวลาบันทึก</th>
-      </tr>
-     </thead>
-     <tbody id="records">
-      <tr><td colspan="7" class="empty">กำลังโหลดข้อมูล...</td></tr>
-     </tbody>
-    </table>
-   </div>
-  </div>
- </section>
-</main>
-</div>
-
-<div class="modal" id="modal"><div class="modalbox" id="modalContent"></div></div>
-<div id="toast" class="toast hidden"></div>
-
-<script>
-const API_URL = "https://script.google.com/macros/s/AKfycbwM6LB-NZjcy0u4biQuwPbIErG5UJZYY9557nWKtJSyMnWe-z-ctayaqmU3Pise6T8fFg/exec";
-const SHEET_ID = "1o0Kym05bLpzf2KnuWDgzksNhQagRngTotbPaoR6dYGk";
-const GID_ATTENDANCE = "0";
-const GID_EMPLOYEES = "802533111";
-
-let mode = 'เข้า', currentEmployee = null, stream = null, photoData = '', todayRecords = [], cachedEmployees = [], onlyTodayFilter = false;
-const $ = id => document.getElementById(id);
-
-function esc(str) {
-  if (str === null || str === undefined) return '';
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-}
-
-function toast(s) {
-  $('toast').textContent = s;
-  $('toast').classList.remove('hidden');
-  clearTimeout(window._tt);
-  window._tt = setTimeout(() => $('toast').classList.add('hidden'), 3800);
-}
-
-function toggleSide() {
-  const sb = $('sidebar');
-  sb.classList.toggle('collapsed');
-  const btn = $('sideToggleBtn');
-  if (btn) {
-    btn.textContent = sb.classList.contains('collapsed') ? '›' : '‹';
-    btn.style.marginLeft = sb.classList.contains('collapsed') ? '0' : 'auto';
-  }
-}
-
-function updateThemeBtnUI() {
-  const isLight = document.body.classList.contains('light');
-  if ($('themeIcon')) $('themeIcon').textContent = isLight ? '🌙' : '☀️';
-}
-
-function toggleTheme() {
-  document.body.classList.toggle('light');
-  localStorage.setItem('att-theme', document.body.classList.contains('light') ? 'light' : 'dark');
-  updateThemeBtnUI();
-}
-if (localStorage.getItem('att-theme') === 'light') document.body.classList.add('light');
-updateThemeBtnUI();
-
-function setMode(m) {
-  mode = m;
-  $('inBtn').classList.toggle('selected', m === 'เข้า');
-  $('outBtn').classList.toggle('selected', m === 'ออก');
-}
-
-function isEarlyLeave(nowStr, startStr, endStr) {
-  const toMins = s => {
-    const p = String(s || '00:00').split(':').map(Number);
-    return (p[0] || 0) * 60 + (p[1] || 0);
-  };
-  let nowM = toMins(nowStr);
-  const startM = toMins(startStr);
-  let endM = toMins(endStr);
-
-  // กรณีกะข้ามเที่ยงคืน (เช่น เข้า 23:00 เลิก 08:00 หรือ เลิก 00:00)
-  if (endM <= startM) {
-    endM += 1440;
-    // หากเวลาปัจจุบันอยู่ช่วงหลังเที่ยงคืนถึงก่อนเวลาเลิกงาน (+เผื่อล่วงเวลา 4 ชม.) ให้บวก 1440
-    // ส่วนช่วงก่อนเที่ยงคืน (เช่น 22:00 - 23:59) ไม่ต้องบวก ทำให้ค่า < endM เสมอ (จับเป็นเลิกงานก่อนเวลาทันที)
-    if (nowM <= endM - 1440 + 240) {
-      nowM += 1440;
-    }
-  }
-  return nowM < endM;
-}
-
-function tick() {
-  let d = new Date();
-  $('clock').textContent = d.toLocaleTimeString('th-TH', { hour12: false });
-  $('dateText').textContent = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-setInterval(tick, 1000);
-
-function modal(html, wide = false) {
-  const box = $('modalContent');
-  box.classList.toggle('wide', wide);
-  box.innerHTML = html;
-  $('modal').classList.add('show');
-}
-
-function closeModal() {
-  $('modal').classList.remove('show');
-  $('modalContent').innerHTML = '';
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop());
-    stream = null;
-  }
-}
-$('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
-
-function getLocalRecs() {
-  try { return JSON.parse(localStorage.getItem('att-local-recs') || '[]'); } catch (e) { return []; }
-}
-function saveLocalRecs(list) {
-  localStorage.setItem('att-local-recs', JSON.stringify(list));
-}
-
-function jsonp(params) {
-  return new Promise((resolve, reject) => {
-    if (!API_URL.startsWith('https://script.google.com/')) return reject(Error('กรุณาตั้งค่า API_URL ให้ถูกต้อง'));
-    let cb = 'cb_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-    let s = document.createElement('script');
-    let timer = setTimeout(() => { cleanup(); reject(Error('เชื่อมต่อ Google Sheets ใช้เวลานานเกินไป')); }, 12000);
-    function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
-    window[cb] = data => { cleanup(); resolve(data); };
-    params.callback = cb;
-    s.src = API_URL + '?' + new URLSearchParams(params).toString();
-    s.onerror = () => { cleanup(); reject(Error('ไม่สามารถติดต่อ Google Apps Script ได้')); };
-    document.body.appendChild(s);
-  });
-}
-async function api(action, data = {}) { return jsonp({ action, ...data }); }
-
-function isTodayRecord(rec) {
-  if (!rec) return false;
-  const now = new Date();
-  const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0'), d = String(now.getDate()).padStart(2, '0');
-  const iso = `${y}-${m}-${d}`;
-  const thDate = `${d}/${m}/${y + 543}`;
-  const enDate = `${d}/${m}/${y}`;
-  const rawDate = String(rec.date || rec.time || '');
-  if (!rec.date && /^\d{1,2}:\d{2}/.test(String(rec.time || ''))) return true;
-  return rawDate.includes(iso) || rawDate.includes(thDate) || rawDate.includes(enDate);
-}
-
-function fetchSheetRows(sheetName, gid) {
-  return new Promise((resolve, reject) => {
-    const cb = 'gviz_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-    const s = document.createElement('script');
-    const timer = setTimeout(() => { cleanup(); reject(Error('timeout')); }, 10000);
-    function cleanup() { clearTimeout(timer); delete window[cb]; s.remove(); }
-    window[cb] = res => {
-      cleanup();
-      if (!res || !res.table || !res.table.rows) return resolve([]);
-      const rows = res.table.rows.map(r => {
-        const cells = r.c || [];
-        const obj = {};
-        for (let i = 0; i < 10; i++) {
-          obj['col' + i] = cells[i] ? (cells[i].f !== undefined && cells[i].f !== null ? String(cells[i].f) : (cells[i].v !== undefined && cells[i].v !== null ? String(cells[i].v) : '')) : '';
-        }
-        return obj;
-      });
-      resolve(rows);
-    };
-    const tq = encodeURIComponent('select *');
-    const gidParam = gid ? `&gid=${encodeURIComponent(gid)}` : `&sheet=${encodeURIComponent(sheetName)}`;
-    s.src = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?${gidParam}&tq=${tq}&tqx=responseHandler:${cb}`;
-    s.onerror = () => { cleanup(); reject(Error('error')); };
-    document.body.appendChild(s);
-  });
-}
-
-function normalizeRecord(r) {
-  if (r.col0 !== undefined) {
-    let date = String(r.col0 || '').trim();
-    let time = String(r.col1 || '').trim();
-    if (date.includes('Date(')) {
-      try {
-        const m = date.match(/Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+),(\d+))?\)/);
-        if (m) {
-          const dt = new Date(m[1], m[2], m[3], m[4] || 0, m[5] || 0, m[6] || 0);
-          date = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear() + 543}`;
-        }
-      } catch (e) {}
-    }
-    if (time.includes('Date(')) {
-      try {
-        const m = time.match(/Date\((\d+),(\d+),(\d+),(\d+),(\d+),(\d+)\)/);
-        if (m) {
-          const dt = new Date(m[1], m[2], m[3], m[4], m[5], m[6]);
-          time = `${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}:${String(dt.getSeconds()).padStart(2,'0')}`;
-        }
-      } catch (e) {}
-    }
-    const type = String(r.col2 || '').trim();
-    const code = String(r.col3 || '').trim();
-    const name = String(r.col4 || '').trim();
-    const status = String(r.col5 || 'ปกติ').trim();
-    const note = String(r.col6 || '-').trim();
-    const photo = String(r.col7 || '').trim();
-    return {
-      date,
-      time: date && time && !time.includes(date) ? `${date} ${time}` : (time || date || '-'),
-      code, name, type, status, note, photo
-    };
-  }
-  return {
-    date: String(r.date || '').trim(),
-    time: String(r.time || '').trim(),
-    code: String(r.code || '').trim(),
-    name: String(r.name || '').trim(),
-    type: String(r.type || '').trim(),
-    status: String(r.status || 'ปกติ').trim(),
-    note: String(r.note || '-').trim(),
-    photo: String(r.photo || '').trim()
-  };
-}
-
-function normalizeEmployee(e) {
-  const cleanTime = (t, fallback) => {
-    if (!t) return fallback;
-    let clean = String(t).replace(/\s*(AM|PM)/gi, '').trim();
-    let parts = clean.split(':');
-    if (parts.length >= 2) {
-      let h = String(parts[0]).padStart(2, '0');
-      let m = String(parts[1]).padStart(2, '0');
-      return `${h}:${m}`;
-    }
-    return clean || fallback;
-  };
-
-  if (e.col0 !== undefined) {
-    return {
-      code: String(e.col0 || '').trim(),
-      name: String(e.col1 || '').trim(),
-      position: String(e.col2 || '-').trim(),
-      start: cleanTime(e.col3, '09:00'),
-      end: cleanTime(e.col5 || e.col4, '18:00'),
-      hours: String(parseFloat(e.col4 || e.col5) || 9),
-      photo: ''
-    };
-  }
-  return {
-    code: String(e.code || '').trim(),
-    name: String(e.name || '').trim(),
-    position: String(e.position || '-').trim(),
-    start: cleanTime(e.start, '09:00'),
-    end: cleanTime(e.end, '18:00'),
-    hours: String(parseFloat(e.hours) || 9),
-    photo: ''
-  };
-}
-
-function toggleDayFilter() {
-  onlyTodayFilter = !onlyTodayFilter;
-  $('filterDayBtn').textContent = onlyTodayFilter ? '📅 แสดง: เฉพาะวันนี้' : '📅 แสดง: ล่าสุดทั้งหมด';
-  renderRecords();
-}
-
-async function loadToday() {
-  const icon = $('refreshIcon'), btn = $('refreshBtn');
-  if (icon) icon.classList.add('spin');
-  if (btn) btn.disabled = true;
-
-  let serverRecs = [];
-  try {
-    const rows = await fetchSheetRows('บันทึกเข้า-ออก', GID_ATTENDANCE);
-    serverRecs = rows.map(normalizeRecord).filter(r => (r.code || r.name) && r.code !== 'รหัสพนักงาน' && r.code !== 'รหัส');
-  } catch (err1) {
-    try {
-      const res = await api('today', { all: '1' });
-      if (res && res.ok && Array.isArray(res.records)) {
-        serverRecs = res.records.map(normalizeRecord);
-      }
-    } catch (err2) {}
-  } finally {
-    if (icon) icon.classList.remove('spin');
-    if (btn) btn.disabled = false;
-  }
-
-  const mergedMap = new Map();
-  for (let r of serverRecs) {
-    const uniqueKey = `${r.code}|${r.type}|${r.time}`;
-    mergedMap.set(uniqueKey, r);
-  }
-
-  todayRecords = Array.from(mergedMap.values());
-  renderRecords();
-}
-
-function renderRecords() {
-  const tbody = $('records');
-  if (!todayRecords || todayRecords.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">ยังไม่มีประวัติการลงเวลาในระบบ</td></tr>';
-    return;
-  }
-
-  let list = todayRecords;
-  if (onlyTodayFilter) {
-    list = list.filter(isTodayRecord);
-  }
-
-  if (list.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">ไม่มีประวัติการลงเวลาสำหรับวันนี้</td></tr>';
-    return;
-  }
-
-  let html = '';
-  const sorted = [...list].reverse();
-  for (let i = 0; i < sorted.length; i++) {
-    const r = sorted[i];
-    let pClass = 'pill';
-    let sText = esc(r.status || 'ปกติ');
-    if (sText.includes('สาย')) pClass += ' late';
-    else if (sText.includes('ก่อนเวลา')) pClass += ' early';
-
-    let photoHtml = '<div style="width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)">♙</div>';
-    if (r.photo && r.photo.startsWith('data:image')) {
-      photoHtml = `<img src="${esc(r.photo)}" alt="photo" title="คลิกเพื่อดูรูปขนาดใหญ่" onclick="viewRecordPhoto('${esc(r.code)}', '${esc(r.name)}', '${esc(r.type)}', '${esc(r.time)}', this.src)" onerror="this.outerHTML='<div style=\\\'width:40px;height:40px;background:var(--panel2);border-radius:8px;display:grid;place-items:center;color:var(--muted)\\\'>♙</div>'">`;
-    }
-
-    html += `<tr>
-      <td>${photoHtml}</td>
-      <td><strong>${esc(r.code)}</strong></td>
-      <td>${esc(r.name)}</td>
-      <td>${esc(r.type)}</td>
-      <td><span class="${pClass}">${sText}</span></td>
-      <td>${esc(r.note)}</td>
-      <td>${esc(r.time)}</td>
-    </tr>`;
-  }
-  tbody.innerHTML = html;
-}
-
-function modeCompare(a, b) {
-  const x = String(a || '00:00').split(':').map(Number);
-  const y = String(b || '00:00').split(':').map(Number);
-  return ((x[0] || 0) * 60 + (x[1] || 0)) - ((y[0] || 0) * 60 + (y[1] || 0));
-}
-
-async function lookupEmployee() {
-  const code = $('empCode').value.trim();
-  if (!code) return toast('กรุณากรอกรหัสพนักงาน');
-  
-  let emp = null;
-  try {
-    const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
-    const emps = rows.map(normalizeEmployee).filter(x => x.code && x.code !== 'รหัสพนักงาน' && x.code !== 'รหัส');
-    cachedEmployees = emps;
-    emp = emps.find(x => x.code.toLowerCase() === code.toLowerCase());
-  } catch (err) {
-    try {
-      const res = await api('lookup', { code });
-      if (res && res.ok) emp = res.employee;
-    } catch (e) {}
-  }
-
-  if (!emp && cachedEmployees.length > 0) {
-    emp = cachedEmployees.find(x => x.code.toLowerCase() === code.toLowerCase());
-  }
-
-  if (!emp) return toast('ไม่พบรหัสพนักงาน "' + code + '" ในระบบ');
-  currentEmployee = emp;
-  
-  const isInMode = (mode === 'เข้า');
-  const hasCheckedIn = todayRecords.some(r => r.code === emp.code && r.type.includes('เข้า') && isTodayRecord(r));
-  const hasCheckedOut = todayRecords.some(r => r.code === emp.code && (r.type.includes('ออก') || r.type.includes('เลิก')) && isTodayRecord(r));
-
-  if ((isInMode && hasCheckedIn) || (!isInMode && hasCheckedOut)) {
-    const modeName = isInMode ? 'เข้างาน' : 'เลิกงาน';
-    const oppositeName = isInMode ? 'เลิกงาน' : 'เข้างาน';
-    modal(`
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
-        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนตรวจสอบโหมดการลงเวลา</h2>
-        <p class="hint" style="margin:0">คุณได้บันทึก "${modeName}" ไปแล้วในวันนี้ หากต้องการลงเวลา${oppositeName} กรุณาเปลี่ยนเป็นโหมด "${oppositeName}" หรือกดยืนยันเพื่อดำเนินการต่อ</p>
+  <!-- ส่วนหัว (Header) ขนาดกะทัดรัด -->
+  <header class="bg-blue-600 text-white px-3 py-2.5 shadow-md flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center space-x-2">
+      <div class="bg-white/10 p-1.5 rounded-lg">
+        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 124h.01M16 16h.01M16 12h.01M8 12h.01M8 16h.01m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
       </div>
-      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
-        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
-        <div style="margin-top:4px"><strong>โหมดที่เลือกอยู่:</strong> ${isInMode ? '🟢 เข้างาน' : '🔴 เลิกงาน'}</div>
-      </div>
-      <div class="modalfoot" style="justify-content:center;gap:12px">
-        <button onclick="closeModal()">ยกเลิก / เปลี่ยนโหมด</button>
-        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, true, false, false);">ยืนยันดำเนินการต่อ</button>
-      </div>
-    `);
-    return;
-  }
-
-  const currentTime = new Date();
-  const timeStr = `${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`;
-  const isEarlyOut = (!isInMode && isEarlyLeave(timeStr, emp.start, emp.end));
-
-  if (isEarlyOut) {
-    modal(`
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
-        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนเลิกงานก่อนเวลา</h2>
-        <p class="hint" style="margin:0">เวลาปัจจุบัน (${timeStr}) เร็วกว่าเวลาเลิกงานที่กำหนด (${emp.end} น.) สถานะในชีตหลังบ้านจะบันทึกเป็น "เลิกงานก่อนเวลา" และบังคับระบุหมายเหตุ</p>
-      </div>
-      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
-        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
-        <div style="margin-top:4px"><strong>เวลาเลิกงานตามกะ:</strong> ${emp.end} น.</div>
-      </div>
-      <div class="modalfoot" style="justify-content:center;gap:12px">
-        <button onclick="closeModal()">ยกเลิก</button>
-        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, false, true, false);">ยืนยันดำเนินการต่อ</button>
-      </div>
-    `);
-    return;
-  }
-
-  if (!isInMode && !hasCheckedIn) {
-    modal(`
-      <div style="text-align:center;margin-bottom:12px">
-        <div style="font-size:36px;margin-bottom:8px">⚠️</div>
-        <h2 style="font-size:18px;margin:0 0 6px">แจ้งเตือนยังไม่ได้สแกนเข้างาน</h2>
-        <p class="hint" style="margin:0">คุณพยายามสแกน "ออกงาน" แต่ยังไม่มีประวัติการสแกน "เข้างาน" ในวันนี้ สถานะในชีตหลังบ้านจะบันทึกเป็น "ไม่ได้สแกนหน้าเข้างาน" และ <strong>บังคับระบุหมายเหตุ</strong></p>
-      </div>
-      <div style="background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:14px 0;font-size:13.5px">
-        <div><strong>พนักงาน:</strong> ${esc(emp.name)} (รหัส ${esc(emp.code)})</div>
-      </div>
-      <div class="modalfoot" style="justify-content:center;gap:12px">
-        <button onclick="closeModal()">ยกเลิก</button>
-        <button class="warning" onclick="closeModal(); openCameraModal(currentEmployee, false, false, true);">ยืนยันดำเนินการต่อ</button>
-      </div>
-    `);
-    return;
-  }
-
-  openCameraModal(emp, false, false, false);
-}
-
-function startScan() {
-  const code = prompt('จำลองการสแกน QR / บัตรพนักงาน:\nกรุณากรอกรหัสพนักงาน:');
-  if (code) {
-    $('empCode').value = code.trim();
-    lookupEmployee();
-  }
-}
-
-function openCameraModal(emp, isDuplicate = false, isEarlyOut = false, missingCheckIn = false) {
-  const currentTime = new Date();
-  const timeStr = `${String(currentTime.getHours()).padStart(2,'0')}:${String(currentTime.getMinutes()).padStart(2,'0')}`;
-  
-  let isLate = false;
-  let isEarly = isEarlyOut;
-  if (mode === 'เข้า') {
-    isLate = (modeCompare(timeStr, emp.start) > 0);
-  } else {
-    isEarly = isEarly || isEarlyLeave(timeStr, emp.start, emp.end);
-  }
-  const isAbnormal = isLate || isEarly || isDuplicate || missingCheckIn;
-
-  modal(`
-    <h2>ถ่ายภาพยืนยันตัวตน — ${esc(emp.name)} (${esc(emp.code)})</h2>
-    <p class="hint">ตำแหน่ง: ${esc(emp.position)} | โหมด: ${esc(mode)}งาน ${isLate ? '<span style="color:var(--red)">(มาสาย)</span>' : ''} ${isEarly ? '<span style="color:var(--amber)">(เลิกงานก่อนเวลา)</span>' : ''} ${isDuplicate ? '<span style="color:var(--amber)">(ลงชื่อซ้ำ)</span>' : ''} ${missingCheckIn ? '<span style="color:var(--amber)">(ไม่ได้สแกนหน้าเข้างาน)</span>' : ''}</p>
-    <video id="camVideo" class="camera" autoplay playsinline muted></video>
-    <canvas id="camCanvas" class="hidden"></canvas>
-    <label>${isAbnormal ? '<span style="color:var(--red)">* บังคับระบุหมายเหตุ (เนื่องจากมีความผิดปกติ / ลงซ้ำ / ไม่ได้สแกนหน้าเข้างาน / มาสาย / เลิกงานก่อนเวลา)</span>' : 'หมายเหตุ (ไม่จำเป็นต้องกรอกกรณีปกติ)'}</label>
-    <input id="modalNote" class="field" placeholder="${isAbnormal ? 'กรุณาระบุเหตุผล/หมายเหตุ (บังคับกรอก)...' : 'ระบุหมายเหตุ (ถ้ามี)...'}">
-    <div class="modalfoot">
-      <button onclick="closeModal()">ยกเลิก</button>
-      <button class="primary" onclick="captureAndSubmit(${isDuplicate}, ${isEarly}, ${missingCheckIn}, ${isAbnormal})">📸 ถ่ายภาพและบันทึกเวลา</button>
-    </div>
-  `);
-
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false })
-    .then(s => {
-      stream = s;
-      const v = $('camVideo');
-      if (v) { v.srcObject = s; }
-    })
-    .catch(e => {
-      toast('ไม่สามารถเปิดกล้องได้: ' + e.message);
-    });
-}
-
-function captureAndSubmit(isDuplicate = false, isEarlyOut = false, missingCheckIn = false, requireNote = false) {
-  const noteInput = $('modalNote');
-  const note = noteInput ? noteInput.value.trim() : '';
-  if (requireNote && !note) {
-    toast('กรุณาระบุหมายเหตุ (บังคับกรอกเนื่องจากมีความผิดปกติหรือลงชื่อซ้ำ)');
-    if (noteInput) noteInput.focus();
-    return;
-  }
-
-  const video = $('camVideo');
-  const canvas = $('camCanvas');
-  if (!video || !canvas) return toast('กล้องไม่พร้อมใช้งาน');
-
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  photoData = canvas.toDataURL('image/jpeg', 0.85);
-
-  closeModal();
-  submitAttendance(currentEmployee, photoData, note, isDuplicate, isEarlyOut, missingCheckIn);
-}
-
-async function submitAttendance(emp, photo, note, isDuplicate = false, isEarlyOut = false, missingCheckIn = false) {
-  toast('กำลังบันทึกข้อมูล...');
-  const payload = {
-    action: 'save',
-    code: emp.code,
-    type: mode,
-    note: note || '-',
-    photo: photo,
-    isDuplicate: isDuplicate ? '1' : '0',
-    isEarlyOut: isEarlyOut ? '1' : '0',
-    missingCheckIn: missingCheckIn ? '1' : '0'
-  };
-
-  try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify(payload),
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
-    });
-    const data = await res.json();
-    if (data && data.ok) {
-      toast('บันทึกเวลาสำเร็จ!');
-      $('empCode').value = '';
-      
-      const now = new Date();
-      const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
-      const dateStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      
-      let finalStatus = 'ปกติ';
-      if (missingCheckIn) finalStatus = 'ไม่ได้สแกนหน้าเข้างาน';
-      else if (isDuplicate) finalStatus = 'ซ้ำ';
-      else if (isEarlyOut) finalStatus = 'เลิกงานก่อนเวลา';
-      else {
-        const timeHHmm = timeStr.substring(0, 5);
-        if (mode === 'เข้า' && modeCompare(timeHHmm, emp.start) > 0) finalStatus = 'สาย';
-        if (mode === 'ออก' && isEarlyLeave(timeHHmm, emp.start, emp.end)) finalStatus = 'เลิกงานก่อนเวลา';
-      }
-
-      const newRec = {
-        date: dateStr,
-        time: `${dateStr} ${timeStr}`,
-        code: emp.code,
-        name: emp.name,
-        type: mode === 'เข้า' ? 'เข้างาน' : 'เลิกงาน',
-        status: finalStatus,
-        note: note || '-',
-        photo: photo
-      };
-      const local = getLocalRecs();
-      local.push(newRec);
-      saveLocalRecs(local);
-
-      loadToday();
-      showEmployeeCard(emp, newRec);
-    } else {
-      throw new Error(data.message || 'บันทึกไม่สำเร็จ');
-    }
-  } catch (err) {
-    toast('ข้อผิดพลาด: ' + err.message);
-  }
-}
-
-function showEmployeeCard(emp, rec) {
-  const box = $('employeeResult');
-  box.classList.remove('hidden');
-  $('empName').textContent = `${emp.name} (รหัส ${emp.code})`;
-  $('empMeta').textContent = `ตำแหน่ง: ${emp.position} | โหมดปัจจุบัน: ${rec.type}`;
-  $('empShift').textContent = `เวลาเข้างาน: ${emp.start} น. | เลิกงาน: ${emp.end} น.`;
-  const avatar = $('avatar');
-  if (rec.photo && rec.photo.startsWith('data:image')) {
-    avatar.innerHTML = `<img src="${rec.photo}" style="width:100%;height:100%;object-fit:cover">`;
-  }
-}
-
-async function openEmployeeSettingsModal() {
-  modal(`<h2>กำลังโหลดข้อมูลพนักงาน...</h2>`, true);
-  try {
-    let emps = [];
-    try {
-      const rows = await fetchSheetRows('ข้อมูลพนักงาน', GID_EMPLOYEES);
-      emps = rows.map(normalizeEmployee).filter(x => x.code && x.code !== 'รหัสพนักงาน' && x.code !== 'รหัส');
-    } catch (e) {
-      const res = await api('employees');
-      if (res && res.ok) emps = res.employees;
-    }
-    cachedEmployees = emps;
-
-    let rowsHtml = '';
-    if (emps.length === 0) {
-      rowsHtml = '<tr><td colspan="6" class="empty">ยังไม่มีข้อมูลพนักงานในระบบ</td></tr>';
-    } else {
-      emps.forEach(emp => {
-        rowsHtml += `<tr>
-          <td><strong>${esc(emp.code)}</strong></td>
-          <td>${esc(emp.name)}</td>
-          <td>${esc(emp.position)}</td>
-          <td><span class="pill">${esc(emp.start)}</span></td>
-          <td>${esc(emp.hours)} ชม.</td>
-          <td><span class="pill early">${esc(emp.end)}</span></td>
-        </tr>`;
-      });
-    }
-
-    modal(`
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-        <div>
-          <h2>ตารางกะเข้า-ออกงานพนักงาน</h2>
-          <p class="hint" style="margin:0">อ้างอิงจากชีต "ข้อมูลพนักงาน" (คอลัมน์ A=รหัส, B=ชื่อ, C=ตำแหน่ง, D=เข้า, E=ชั่วโมง, F=ออก)</p>
-        </div>
-        <button class="primary smBtn" onclick="openEmployeeSettingsModal()">🔄 รีเฟรช</button>
-      </div>
-      <div class="tablewrap" style="max-height:60vh;overflow-y:auto">
-        <table>
-          <thead>
-            <tr>
-              <th>รหัส (A)</th>
-              <th>ชื่อพนักงาน (B)</th>
-              <th>ตำแหน่ง (C)</th>
-              <th>เข้างาน (D)</th>
-              <th>ชม. (E)</th>
-              <th>เลิกงาน (F)</th>
-            </tr>
-          </thead>
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-      <div class="modalfoot">
-        <button onclick="closeModal()">ปิด</button>
-      </div>
-    `, true);
-  } catch (err) {
-    modal(`<h2>เกิดข้อผิดพลาด</h2><p class="hint">${esc(err.message)}</p><div class="modalfoot"><button onclick="closeModal()">ปิด</button></div>`);
-  }
-}
-
-function adminLogin() {
-  modal(`<h2>ยืนยันรหัสผู้ดูแลระบบ</h2>
-    <p class="hint">กรอกรหัส PIN เพื่อเปิดชีตหลังบ้าน Google Sheets</p>
-    <label>รหัสผ่าน PIN</label>
-    <input id="adminPinInput" type="password" class="field" placeholder="กรอกรหัส PIN..." onkeydown="if(event.key==='Enter')submitAdminLogin()">
-    <div class="modalfoot">
-      <button onclick="closeModal()">ยกเลิก</button>
-      <button id="btnAdminGo" class="warning" onclick="submitAdminLogin()">🔓 เปิดชีตหลังบ้าน</button>
-    </div>`);
-  setTimeout(() => { if ($('adminPinInput')) $('adminPinInput').focus(); }, 80);
-}
-
-async function submitAdminLogin() {
-  const pin = $('adminPinInput').value.trim();
-  if (!pin) return toast('กรุณากรอกรหัส PIN');
-  const btn = $('btnAdminGo');
-  btn.disabled = true;
-  btn.textContent = 'กำลังตรวจสอบ...';
-  try {
-    const res = await api('admin', { pin });
-    if (res && res.ok) {
-      closeModal();
-      window.open(res.sheetUrl || `https://docs.google.com/spreadsheets/d/${SHEET_ID}/edit`, '_blank');
-      toast('เปิดชีตหลังบ้านสำเร็จ');
-    } else {
-      throw new Error(res.message || 'รหัส PIN ไม่ถูกต้อง');
-    }
-  } catch (err) {
-    toast(err.message || 'รหัส PIN ไม่ถูกต้อง');
-    btn.disabled = false;
-    btn.textContent = '🔓 เปิดชีตหลังบ้าน';
-  }
-}
-
-function changePin() {
-  modal(`<h2>เปลี่ยนรหัสผ่าน PIN ผู้ดูแลระบบ</h2>
-    <label>รหัสผ่านปัจจุบัน</label>
-    <input id="oldPin" type="password" class="field" placeholder="รหัสผ่านปัจจุบัน...">
-    <label>รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</label>
-    <input id="newPin" type="password" class="field" placeholder="รหัสผ่านใหม่...">
-    <div class="modalfoot">
-      <button onclick="closeModal()">ยกเลิก</button>
-      <button class="primary" onclick="submitChangePin()">บันทึกรหัสใหม่</button>
-    </div>`);
-}
-
-async function submitChangePin() {
-  const oldPin = $('oldPin').value.trim();
-  const newPin = $('newPin').value.trim();
-  if (!oldPin || !newPin) return toast('กรุณากรอกข้อมูลให้ครบถ้วน');
-  try {
-    const res = await api('changePin', { oldPin, newPin });
-    if (res && res.ok) {
-      closeModal();
-      toast('เปลี่ยนรหัสผ่านเรียบร้อย');
-    } else {
-      throw new Error(res.message || 'ไม่สามารถเปลี่ยนรหัสได้');
-    }
-  } catch (err) {
-    toast(err.message);
-  }
-}
-
-function viewRecordPhoto(code, name, type, time, src) {
-  if (!src) return;
-  const safeFileName = `attendance_${code}_${time.replace(/[^0-9]/g, '')}.jpg`;
-  modal(`
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div>
-        <h2 style="margin:0;font-size:17px">ภาพถ่ายยืนยันตัวตน</h2>
-        <p class="hint" style="margin:2px 0 0">${esc(name)} (รหัส ${esc(code)}) • ${esc(type)} • ${esc(time)}</p>
+        <h1 class="font-bold text-base leading-tight">สแกนพัสดุ K3S</h1>
+        <p class="text-[11px] text-blue-100 leading-tight">พร้อมยิงบาร์โค้ด</p>
       </div>
     </div>
-    <div style="background:#000;border-radius:14px;overflow:hidden;border:1px solid var(--line);display:grid;place-items:center;margin:12px 0">
-      <img src="${esc(src)}" alt="Full Photo" style="width:100%;max-height:62vh;object-fit:contain;display:block">
+    <div class="bg-blue-700/80 px-3 py-1 rounded-xl border border-blue-500/50 flex items-center space-x-1.5">
+      <span class="text-xs text-blue-200 font-medium">รวม</span>
+      <span id="itemCount" class="font-extrabold text-base text-white">0</span>
     </div>
-    <div class="modalfoot">
-      <a href="${esc(src)}" download="${esc(safeFileName)}" style="text-decoration:none">
-        <button type="button" class="primary">⬇️ ดาวน์โหลดรูปภาพ (.jpg)</button>
-      </a>
-      <button type="button" onclick="closeModal()">ปิด</button>
-    </div>
-  `);
-}
+  </header>
 
-loadToday();
-</script>
+  <!-- ส่วนควบคุมการสแกนและกรอกข้อมูล -->
+  <div class="bg-white px-3 py-2.5 shadow-sm border-b border-slate-200 sticky top-[52px] z-30">
+    <div class="relative flex items-center">
+      <input 
+        type="text" 
+        id="barcodeInput" 
+        inputmode="none"
+        placeholder="กดปุ่มยิงบาร์โค้ด..." 
+        class="w-full bg-slate-50 border-2 border-blue-400 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 rounded-xl pl-3 pr-20 py-3 text-base font-bold text-slate-800 placeholder-slate-400 outline-none transition"
+        autocomplete="off"
+      >
+      <!-- ปุ่มเปิด/ปิดคีย์บอร์ด (ขยายใหญ่พิเศษ) -->
+      <button 
+        type="button" 
+        id="keyboardToggleBtn" 
+        class="absolute right-1.5 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-800 p-3 rounded-xl shadow-md transition flex items-center justify-center"
+        title="เปิด/ปิดคีย์บอร์ด">
+        <svg id="keyboardIcon" class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ตัวเลือกเสริม -->
+    <div class="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-xs">
+      <div class="flex items-center space-x-3 shrink-0">
+        <label class="flex items-center space-x-1.5 cursor-pointer py-1">
+          <input type="checkbox" id="preventDuplicate" checked class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+          <span class="text-slate-700 font-semibold">กันซ้ำ</span>
+        </label>
+        <label class="flex items-center space-x-1.5 cursor-pointer py-1">
+          <input type="checkbox" id="soundEnabled" checked class="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500">
+          <span class="text-slate-700 font-semibold">เสียง</span>
+        </label>
+      </div>
+      <div class="flex items-center space-x-1 text-blue-700 font-bold text-[11px] bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-200 ml-2">
+        <span class="leading-tight">หากสแกนแล้วไม่มีเลขขึ้นให้กดตรงนี้</span>
+        <svg class="w-5 h-5 text-blue-600 shrink-0 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M7 17L17 7M17 7H7M17 7V17"></path>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- พื้นที่แสดงรายการพัสดุที่สแกนแล้ว -->
+  <main class="flex-1 px-3 py-2.5 overflow-y-auto pb-24">
+    <div id="emptyState" class="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+      <div class="bg-slate-200/70 p-4 rounded-full mb-3">
+        <svg class="w-10 h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+        </svg>
+      </div>
+      <p class="font-bold text-slate-500 text-base">ยังไม่มีรายการพัสดุ</p>
+      <p class="text-xs text-slate-400 mt-1">กดปุ่มสแกนด้านข้างเครื่องเพื่อยิง</p>
+    </div>
+
+    <ul id="scannedList" class="space-y-2"></ul>
+  </main>
+
+  <!-- แถบปุ่มควบคุมด้านล่าง (ติดขอบล่างตลอดเวลา) -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-3 py-2.5 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+    <div class="grid grid-cols-3 gap-2.5">
+      <button 
+        type="button" 
+        id="clearBtn" 
+        class="col-span-1 bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-800 font-bold py-3.5 rounded-xl text-base transition flex items-center justify-center">
+        ล้างค่า
+      </button>
+      <button 
+        type="button" 
+        id="saveBtn" 
+        class="col-span-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3.5 rounded-xl text-base shadow-md transition flex items-center justify-center space-x-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
+        </svg>
+        <span>บันทึก (0)</span>
+      </button>
+    </div>
+  </footer>
+
+  <!-- Toast แจ้งเตือน -->
+  <div id="toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-2xl shadow-xl text-sm font-bold z-50 transition-all duration-300 opacity-0 translate-y-4 pointer-events-none bg-slate-800 text-white whitespace-nowrap">
+    <span id="toastMessage">แจ้งเตือน</span>
+  </div>
+
+  <!-- Modal ยืนยันการล้างรายการทั้งหมด -->
+  <div id="confirmModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl w-full max-w-xs p-5 shadow-2xl text-center">
+      <h3 class="text-lg font-bold text-slate-800">ยืนยันการล้างรายการทั้งหมด?</h3>
+      <p class="text-sm text-slate-500 mt-1.5">รายการที่สแกนค้างไว้จะถูกลบทั้งหมด</p>
+      <div class="grid grid-cols-2 gap-3 mt-5">
+        <button id="cancelClearBtn" type="button" class="py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-base transition">ยกเลิก</button>
+        <button id="confirmClearBtn" type="button" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-base transition">ลบทิ้งเลย</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal ยืนยันการลบทีละรายการ -->
+  <div id="confirmItemModal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl w-full max-w-xs p-5 shadow-2xl text-center">
+      <h3 class="text-lg font-bold text-slate-800">ยืนยันการลบรายการนี้?</h3>
+      <p class="text-sm text-slate-500 mt-1.5">รายการพัสดุดังกล่าวจะถูกลบออกจากตาราง</p>
+      <div class="grid grid-cols-2 gap-3 mt-5">
+        <button id="cancelItemBtn" type="button" class="py-2.5 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold text-base transition">ยกเลิก</button>
+        <button id="confirmItemBtn" type="button" class="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-base transition">ลบรายการ</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbzzlww8AXROufhrEu9d4zLjA_a98Bx5_SWFtKpU1R96Shh3H_xsaO4nYl7-ADHccXgJ/exec';
+    const STORAGE_KEY = 'idata_k3s_scanned_items';
+    
+    // โหลดข้อมูลเก่าที่เคยสแกนค้างไว้จากหน่วยความจำเครื่อง
+    let scannedItems = [];
+    try {
+      const savedData = localStorage.getItem(STORAGE_KEY);
+      if (savedData) {
+        scannedItems = JSON.parse(savedData);
+      }
+    } catch (e) {
+      scannedItems = [];
+    }
+
+    // ฟังก์ชันบันทึกรายการปัจจุบันลงหน่วยความจำเครื่อง
+    function saveToLocalStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(scannedItems));
+      } catch (e) {}
+    }
+
+    const barcodeInput = document.getElementById('barcodeInput');
+    const scannedList = document.getElementById('scannedList');
+    const emptyState = document.getElementById('emptyState');
+    const itemCount = document.getElementById('itemCount');
+    const clearBtn = document.getElementById('clearBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const toast = document.getElementById('toast');
+    const toastMessage = document.getElementById('toastMessage');
+    const preventDuplicate = document.getElementById('preventDuplicate');
+    const soundEnabled = document.getElementById('soundEnabled');
+    const keyboardToggleBtn = document.getElementById('keyboardToggleBtn');
+    
+    const confirmModal = document.getElementById('confirmModal');
+    const cancelClearBtn = document.getElementById('cancelClearBtn');
+    const confirmClearBtn = document.getElementById('confirmClearBtn');
+    
+    const confirmItemModal = document.getElementById('confirmItemModal');
+    const cancelItemBtn = document.getElementById('cancelItemBtn');
+    const confirmItemBtn = document.getElementById('confirmItemBtn');
+
+    let isKeyboardOpen = false;
+
+    // ฟังก์ชันเปิด/ปิดคีย์บอร์ด
+    if (keyboardToggleBtn && barcodeInput) {
+      keyboardToggleBtn.addEventListener('click', () => {
+        isKeyboardOpen = !isKeyboardOpen;
+        if (isKeyboardOpen) {
+          barcodeInput.removeAttribute('inputmode');
+          keyboardToggleBtn.classList.remove('bg-slate-200', 'text-slate-800');
+          keyboardToggleBtn.classList.add('bg-blue-600', 'text-white');
+          showToast('เปิดคีย์บอร์ดแล้ว (พิมพ์เองได้)', 'bg-blue-600 text-white');
+        } else {
+          barcodeInput.setAttribute('inputmode', 'none');
+          keyboardToggleBtn.classList.remove('bg-blue-600', 'text-white');
+          keyboardToggleBtn.classList.add('bg-slate-200', 'text-slate-800');
+          showToast('ปิดคีย์บอร์ดแล้ว (พร้อมยิงสแกน)', 'bg-slate-800 text-white');
+        }
+        barcodeInput.blur();
+        setTimeout(() => barcodeInput.focus(), 50);
+      });
+    }
+
+    // ฟังก์ชันเล่นเสียงปี๊บสแกน (ใช้ AudioContext ตัวเดียวร่วมกัน ป้องกันเบราว์เซอร์บล็อกเสียงเมื่อยิงครบ 15-20 ครั้ง)
+    let sharedAudioCtx = null;
+    function getAudioContext() {
+      if (!sharedAudioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          sharedAudioCtx = new AudioContextClass();
+        }
+      }
+      if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+        sharedAudioCtx.resume();
+      }
+      return sharedAudioCtx;
+    }
+
+    function playBeep() {
+      if (!soundEnabled || !soundEnabled.checked) return;
+      setTimeout(() => {
+        try {
+          const audioCtx = getAudioContext();
+          if (!audioCtx) return;
+
+          const now = audioCtx.currentTime;
+          // เล่นเสียงทำนองสำเร็จ 2 โน้ตไล่เสียงสูงขึ้น (ติ๊ง-ด่อง! C6 -> G6)
+          const notes = [
+            { freq: 1046.50, time: 0, duration: 0.10 },    // โน้ตแรก (โดสูง)
+            { freq: 1567.98, time: 0.11, duration: 0.22 }  // โน้ตสอง (ซอลสูง ลากยาวนิดหน่อยให้รู้สึกสำเร็จ)
+          ];
+
+          notes.forEach(note => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'triangle'; // โทนเสียงใส กังวาน ฟังสบายหูแต่ดังชัด
+            osc.frequency.setValueAtTime(note.freq, now + note.time);
+
+            // ปรับระดับเสียงให้ดังชัดเจนและค่อยๆ เฟดลงตอนท้ายไม่ให้เสียงแตก
+            gainNode.gain.setValueAtTime(1.0, now + note.time);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, now + note.time + note.duration);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start(now + note.time);
+            osc.stop(now + note.time + note.duration);
+          });
+        } catch (e) {}
+      }, 400);
+    }
+
+    // ฟังก์ชันเล่นเสียงเตือนกรณีสแกนเลขซ้ำ (โทนต่ำ 2 จังหวะ ตื๊ด-ตื๊ด) หน่วงเวลา 0.4 วินาที
+    function playDuplicateBeep() {
+      if (!soundEnabled || !soundEnabled.checked) return;
+      setTimeout(() => {
+        try {
+          const audioCtx = getAudioContext();
+          if (!audioCtx) return;
+
+          const now = audioCtx.currentTime;
+          // เล่นเสียงโทนต่ำ 2 ครั้งติดกันเพื่อเตือนว่าเลขซ้ำ
+          [0, 0.18].forEach((offset) => {
+            const osc = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(320, now + offset);
+
+            gainNode.gain.setValueAtTime(1.0, now + offset);
+
+            osc.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            osc.start(now + offset);
+            osc.stop(now + offset + 0.13);
+          });
+        } catch (e) {}
+      }, 400);
+    }
+
+    // ปลุกระบบเสียงทันทีที่มีการแตะหน้าจอครั้งแรก
+    document.addEventListener('touchstart', getAudioContext, { once: true });
+    document.addEventListener('click', getAudioContext, { once: true });
+
+    // แสดง Toast แจ้งเตือน
+    function showToast(message, bgColor = 'bg-slate-800 text-white') {
+      if (!toast || !toastMessage) return;
+      toastMessage.textContent = message;
+      toast.className = `fixed bottom-20 left-1/2 -translate-x-1/2 px-4 py-2.5 rounded-2xl shadow-xl text-sm font-bold z-50 transition-all duration-300 pointer-events-none whitespace-nowrap ${bgColor}`;
+      toast.classList.remove('opacity-0', 'translate-y-4');
+      
+      clearTimeout(toast.hideTimeout);
+      toast.hideTimeout = setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-4');
+      }, 2000);
+    }
+
+    // จัดการโฟกัสช่องสแกน (ป้องกันคีย์บอร์ดเด้งเมื่อไม่ได้เปิดโหมดพิมพ์เอง)
+    function keepFocus() {
+      if (!barcodeInput) return;
+      if (!isKeyboardOpen) {
+        barcodeInput.setAttribute('inputmode', 'none');
+        barcodeInput.focus();
+      } else {
+        barcodeInput.removeAttribute('inputmode');
+        barcodeInput.focus();
+      }
+    }
+
+    // ดักจับสัญญาณยิงบาร์โค้ดจากปุ่มด้านข้างเครื่องโดยตรง (ทำงานได้แม้ช่องกรอกจะโดนซ่อนคีย์บอร์ด)
+    let hardwareBuffer = '';
+    let hardwareTimer = null;
+    document.addEventListener('keydown', (e) => {
+      // หากไม่ได้กำลังพิมพ์ในช่อง input หรือช่อง input รับค่าไม่ได้ ให้ดักจับค่าจากหัวอ่านเลเซอร์โดยตรง
+      if (document.activeElement !== barcodeInput) {
+        if (e.key === 'Enter') {
+          if (hardwareBuffer.trim().length > 0) {
+            e.preventDefault();
+            addBarcode(hardwareBuffer.trim());
+            hardwareBuffer = '';
+            keepFocus();
+          }
+        } else if (e.key.length === 1) {
+          hardwareBuffer += e.key;
+          clearTimeout(hardwareTimer);
+          hardwareTimer = setTimeout(() => {
+            if (hardwareBuffer.trim().length >= 4) {
+              addBarcode(hardwareBuffer.trim());
+            }
+            hardwareBuffer = '';
+          }, 150);
+        }
+      }
+    });
+
+    if (barcodeInput) {
+      barcodeInput.addEventListener('blur', () => {
+        setTimeout(keepFocus, 150);
+      });
+
+      // รองรับการกด Enter ปกติ
+      barcodeInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = barcodeInput.value.trim();
+          if (val) {
+            addBarcode(val);
+            barcodeInput.value = '';
+          }
+        }
+      });
+
+      // เพิ่มระบบดึงค่าอัตโนมัติทันทีเมื่อหัวอ่านยิงข้อมูลเสร็จ (รองรับเครื่องที่ส่งค่าต่อเนื่องโดยไม่มี Enter)
+      let scanTimeout = null;
+      barcodeInput.addEventListener('input', (e) => {
+        const val = barcodeInput.value.trim();
+        // หากมีความยาวตัวอักษรบาร์โค้ดทั่วไป (เช่น มากกว่า 5 ตัวอักษร) และมีค่าเข้ามา
+        if (val.length >= 4) {
+          clearTimeout(scanTimeout);
+          scanTimeout = setTimeout(() => {
+            const currentVal = barcodeInput.value.trim();
+            if (currentVal) {
+              addBarcode(currentVal);
+              barcodeInput.value = '';
+            }
+          }, 120); // หน่วงเวลาเล็กน้อยรอให้หัวอ่านยิงตัวอักษรจนครบชุด
+        }
+      });
+    }
+
+    // เพิ่มบาร์โค้ดลงรายการ
+    function addBarcode(code) {
+      if (preventDuplicate && preventDuplicate.checked) {
+        const exists = scannedItems.some(item => item.code === code);
+        if (exists) {
+          showToast('เลขพัสดุนี้มีในรายการแล้ว (กันซ้ำ)', 'bg-amber-500 text-white');
+          playDuplicateBeep();
+          return;
+        }
+      }
+
+      const now = new Date();
+      const timeString = now.toTimeString().split(' ')[0];
+      
+      scannedItems.unshift({ code, time: timeString });
+      saveToLocalStorage(); // บันทึกลงเครื่องทันที
+      playBeep();
+      renderList();
+      showToast('สแกนสำเร็จ: ' + code, 'bg-emerald-600 text-white');
+    }
+
+    // อัปเดตการแสดงผลรายการ
+    function renderList() {
+      const total = scannedItems.length;
+      if (itemCount) itemCount.textContent = total;
+      if (saveBtn) saveBtn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path></svg><span>บันทึก (${total})</span>`;
+
+      if (total === 0) {
+        if (emptyState) emptyState.classList.remove('hidden');
+        if (scannedList) scannedList.innerHTML = '';
+        return;
+      }
+
+      if (emptyState) emptyState.classList.add('hidden');
+      if (scannedList) {
+        scannedList.innerHTML = scannedItems.map((item, index) => {
+          const orderNumber = total - index;
+          return `
+            <li class="bg-white px-3 py-2 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+              <div class="flex items-center space-x-2.5 overflow-hidden">
+                <span class="bg-blue-100 text-blue-700 font-extrabold text-sm w-8 h-8 rounded-lg flex items-center justify-center shrink-0">
+                  ${orderNumber}
+                </span>
+                <div class="truncate">
+                  <p class="font-bold text-slate-900 text-base leading-tight truncate select-all">${escapeHtml(item.code)}</p>
+                  <p class="text-xs text-slate-500 leading-tight mt-0.5">${item.time}</p>
+                </div>
+              </div>
+              <button 
+                type="button" 
+                onclick="promptRemoveItem(${index})" 
+                class="text-rose-600 bg-rose-50 hover:bg-rose-100 active:bg-rose-200 p-2 rounded-xl transition shrink-0 ml-2"
+                title="ลบรายการนี้">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                </svg>
+              </button>
+            </li>
+          `;
+        }).join('');
+      }
+    }
+
+    let itemToDeleteIndex = null;
+
+    window.promptRemoveItem = function(index) {
+      itemToDeleteIndex = index;
+      if (confirmItemModal) {
+        confirmItemModal.classList.remove('hidden');
+        confirmItemModal.classList.add('flex');
+      }
+    };
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return text.replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // ปุ่มล้างค่าทั้งหมด
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        if (scannedItems.length === 0) return;
+        if (confirmModal) {
+          confirmModal.classList.remove('hidden');
+          confirmModal.classList.add('flex');
+        }
+      });
+    }
+
+    if (cancelClearBtn) {
+      cancelClearBtn.addEventListener('click', () => {
+        if (confirmModal) {
+          confirmModal.classList.add('hidden');
+          confirmModal.classList.remove('flex');
+        }
+        keepFocus();
+      });
+    }
+
+    if (confirmClearBtn) {
+      confirmClearBtn.addEventListener('click', () => {
+        scannedItems = [];
+        saveToLocalStorage(); // ล้างข้อมูลในเครื่องด้วย
+        renderList();
+        if (confirmModal) {
+          confirmModal.classList.add('hidden');
+          confirmModal.classList.remove('flex');
+        }
+        showToast('ล้างรายการทั้งหมดแล้ว', 'bg-slate-700 text-white');
+        keepFocus();
+      });
+    }
+
+    // Event สำหรับ Modal ลบทีละรายการ
+    if (cancelItemBtn) {
+      cancelItemBtn.addEventListener('click', () => {
+        if (confirmItemModal) {
+          confirmItemModal.classList.add('hidden');
+          confirmItemModal.classList.remove('flex');
+        }
+        itemToDeleteIndex = null;
+        keepFocus();
+      });
+    }
+
+    if (confirmItemBtn) {
+      confirmItemBtn.addEventListener('click', () => {
+        if (itemToDeleteIndex !== null && itemToDeleteIndex >= 0 && itemToDeleteIndex < scannedItems.length) {
+          scannedItems.splice(itemToDeleteIndex, 1);
+          saveToLocalStorage(); // อัปเดตข้อมูลในเครื่องหลังลบ
+          renderList();
+          showToast('ลบรายการพัสดุเรียบร้อยแล้ว', 'bg-slate-700 text-white');
+        }
+        if (confirmItemModal) {
+          confirmItemModal.classList.add('hidden');
+          confirmItemModal.classList.remove('flex');
+        }
+        itemToDeleteIndex = null;
+        keepFocus();
+      });
+    }
+
+    // ปุ่มบันทึกลง Google Sheets
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        if (scannedItems.length === 0) {
+          showToast('ยังไม่มีรายการพัสดุที่สแกน', 'bg-amber-500 text-white');
+          return;
+        }
+
+        const originalHTML = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span>กำลังบันทึก...</span>';
+        showToast('กำลังส่งข้อมูลไป Google Sheets...', 'bg-blue-600 text-white');
+
+        try {
+          const payload = {
+            items: scannedItems.map(item => item.code)
+          };
+
+          await fetch(scriptURL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          showToast('บันทึกลงชีตสำเร็จ!', 'bg-emerald-600 text-white');
+          scannedItems = [];
+          saveToLocalStorage(); // ล้างข้อมูลในเครื่องเมื่อส่งเข้าชีตสำเร็จแล้ว
+          renderList();
+        } catch (error) {
+          showToast('เกิดข้อผิดพลาดในการบันทึก', 'bg-rose-600 text-white');
+        } finally {
+          saveBtn.disabled = false;
+          saveBtn.innerHTML = originalHTML;
+          keepFocus();
+        }
+      });
+    }
+
+    window.addEventListener('load', () => {
+      renderList(); // แสดงรายการเก่าที่ค้างอยู่ในเครื่องทันทีที่เปิดเว็บ
+      keepFocus();
+    });
+  </script>
 </body>
 </html>
