@@ -14,8 +14,16 @@
 
   <!-- ส่วนหัว (Header) ขนาดกะทัดรัด -->
   <header class="bg-blue-600 text-white px-3 py-2.5 shadow-md flex items-center justify-between gap-2 sticky top-0 z-40">
-    <!-- ฝั่งซ้าย: ยอดรวม และชุดสวิตช์เปิด-ปิด -->
+    <!-- ฝั่งซ้าย: สแกน QR, ยอดรวม และชุดสวิตช์เปิด-ปิด -->
     <div class="flex items-center flex-wrap gap-2.5">
+      <!-- ป้าย สแกน QR -->
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <svg class="w-5 h-5 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path>
+        </svg>
+        <span class="font-extrabold text-base tracking-tight text-white">สแกน QR</span>
+      </div>
+
       <!-- ยอดรวม -->
       <div class="bg-blue-700/90 px-2.5 py-1.5 rounded-xl border border-blue-400/50 flex items-center space-x-1.5 shrink-0 shadow-inner">
         <span class="text-xs text-blue-200 font-medium">รวม</span>
